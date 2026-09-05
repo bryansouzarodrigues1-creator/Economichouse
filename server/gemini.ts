@@ -1,7 +1,7 @@
 import { GoogleGenAI, Type } from '@google/genai';
 import { Product, Consumption, Recipe } from '../src/types';
 
-export const GEMINI_MODEL = 'gemini-3.6-flash';
+export const GEMINI_MODEL = 'gemini-3.8-flash';
 
 /**
  * Lazy initialization of GoogleGenAI client.

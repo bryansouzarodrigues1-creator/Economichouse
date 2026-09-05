@@ -109,7 +109,7 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
           productId: selectedProduct.id,
           newStockValue: roundPrecision(Number(quantity), 3),
           type: 'manual_adjustment',
-          reason: notes.trim() || 'Correção de contagem física em casa',
+          reason: notes.trim() || 'Correção de contagem física de estoque',
           memberId: activeMemberId,
         });
         setFeedbackSuccess(`Estoque de ${selectedProduct.name} corrigido para ${quantity} ${selectedProduct.unit}!`);
@@ -340,7 +340,7 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
                   </label>
                   <input
                     type="text"
-                    placeholder="Ex: Almoço de domingo"
+                    placeholder="Ex: Reposição semanal ou observações"
                     value={notes}
                     onChange={(e) => setNotes(e.target.value)}
                     className="w-full text-sm bg-white/80 border border-white/60 rounded-2xl px-3.5 py-2.5 focus:border-rose-400 outline-none shadow-2xs"
@@ -376,7 +376,7 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
                     activeTab === 'consumption'
                       ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-rose-100'
                       : activeTab === 'purchase'
-                      ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 shadow-rose-100'
+                      ? 'bg-slate-900 hover:bg-black shadow-slate-900/10'
                       : 'bg-teal-600 hover:bg-teal-700 shadow-teal-100'
                   }`}
                 >
@@ -387,7 +387,7 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
                       : activeTab === 'consumption'
                       ? `Confirmar Consumo de ${quantity} ${selectedProduct?.unit}`
                       : activeTab === 'purchase'
-                      ? `Registrar Compra de ${quantity} ${selectedProduct?.unit}`
+                      ? `Confirmar Compra de ${quantity} ${selectedProduct?.unit}`
                       : `Atualizar Estoque para ${quantity} ${selectedProduct?.unit}`}
                   </span>
                 </button>

@@ -1,6 +1,8 @@
 import { 
   House, 
   UserMember, 
+  Role,
+  SubscriptionPlan,
   Category, 
   Product, 
   StockMovement, 
@@ -65,6 +67,38 @@ export function getCachedData(): FullHouseData {
       if (parsed && parsed.house && Array.isArray(parsed.products)) {
         if (!Array.isArray(parsed.recipes)) {
           parsed.recipes = INITIAL_HOUSE_DATA.recipes || [];
+        }
+        // Migração suave para nomenclatura profissional e RBAC SaaS
+        let changed = false;
+        if (Array.isArray(parsed.members)) {
+          parsed.members = parsed.members.map((m: any, idx: number) => {
+            if (m.name?.includes('Mãe')) {
+              m.name = 'Mariana Silva';
+              m.role = 'owner';
+              m.email = 'mariana.silva@casacontrole.app';
+              changed = true;
+            } else if (m.name?.includes('Filho')) {
+              m.name = 'Carlos Eduardo';
+              m.role = 'admin';
+              m.email = 'carlos.eduardo@casacontrole.app';
+              changed = true;
+            } else if (idx === 0 && (!m.role || m.role === 'admin')) {
+              m.role = 'owner';
+              changed = true;
+            }
+            return m;
+          });
+        }
+        if (parsed.house.name === 'Casa da Família') {
+          parsed.house.name = 'Residência Principal';
+          changed = true;
+        }
+        if (!parsed.house.plan) {
+          parsed.house.plan = 'pro';
+          changed = true;
+        }
+        if (changed) {
+          setCachedData(parsed);
         }
         return parsed;
       }
@@ -422,9 +456,34 @@ export async function apiAddCategory(houseId: string, name: string, icon?: strin
   return newCategory;
 }
 
+export async function apiUpdateHouse(houseId: string, update: Partial<House>): Promise<House | null> {
+  try {
+    const res = await fetch(`/api/houses/${houseId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(update),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback local
+  }
+
+  const current = getCachedData();
+  if (current.house) {
+    current.house = {
+      ...current.house,
+      ...update,
+      updated_at: new Date().toISOString()
+    };
+    setCachedData(current);
+    return current.house;
+  }
+  return null;
+}
+
 export async function apiAddMember(
   houseId: string, 
-  payload: { name: string; email?: string; role: 'admin' | 'member'; avatarColor?: string }
+  payload: { name: string; email?: string; role: Role; avatarColor?: string }
 ) {
   try {
     const res = await fetch(`/api/houses/${houseId}/members`, {

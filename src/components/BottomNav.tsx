@@ -1,16 +1,7 @@
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  Package, 
-  ChefHat,
-  Sparkles,
-  ShoppingCart, 
-  TrendingDown, 
-  ReceiptText, 
-  Settings 
-} from 'lucide-react';
+import { Package, ShoppingCart, Sparkles } from 'lucide-react';
 
-export type NavTab = 'dashboard' | 'stock' | 'recipes' | 'assistant' | 'shopping_list' | 'consumption' | 'purchases' | 'settings';
+export type NavTab = 'stock' | 'shopping_list' | 'recipes' | 'settings';
 
 interface BottomNavProps {
   currentTab: NavTab;
@@ -24,23 +15,30 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   buyNowCount,
 }) => {
   const tabs = [
-    { id: 'dashboard' as NavTab, label: 'Início', icon: LayoutDashboard },
-    { id: 'stock' as NavTab, label: 'Estoque', icon: Package },
-    { id: 'recipes' as NavTab, label: 'Receitas', icon: ChefHat },
+    { 
+      id: 'stock' as NavTab, 
+      label: 'Despensa', 
+      emoji: '📦',
+      icon: Package 
+    },
     { 
       id: 'shopping_list' as NavTab, 
-      label: 'Comprar', 
+      label: 'Lista de Compras', 
+      emoji: '🛒',
       icon: ShoppingCart, 
       badge: buyNowCount > 0 ? buyNowCount : undefined 
     },
-    { id: 'consumption' as NavTab, label: 'Consumo', icon: TrendingDown },
-    { id: 'purchases' as NavTab, label: 'Compras', icon: ReceiptText },
-    { id: 'settings' as NavTab, label: 'Casa', icon: Settings },
+    { 
+      id: 'recipes' as NavTab, 
+      label: 'Chef IA (Receitas)', 
+      emoji: '🍳',
+      icon: Sparkles 
+    },
   ];
 
   return (
-    <nav className="fixed bottom-3 sm:bottom-4 left-0 right-0 z-40 px-2 sm:px-4 pointer-events-none pb-safe">
-      <div className="max-w-lg mx-auto pointer-events-auto bg-slate-900/90 backdrop-blur-xl border border-white/15 px-2 sm:px-4 py-2 rounded-full flex items-center justify-around shadow-2xl">
+    <nav className="fixed bottom-3 sm:bottom-5 left-0 right-0 z-40 px-3 sm:px-6 pointer-events-none pb-safe max-w-full">
+      <div className="max-w-md w-full mx-auto pointer-events-auto bg-white/90 backdrop-blur-2xl border border-white/80 px-2 py-1.5 rounded-2xl sm:rounded-full grid grid-cols-3 gap-1 shadow-2xl shadow-slate-900/15">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;
@@ -50,28 +48,26 @@ export const BottomNav: React.FC<BottomNavProps> = ({
               key={tab.id}
               onClick={() => onSelectTab(tab.id)}
               id={`tab-btn-${tab.id}`}
-              className={`relative flex flex-col items-center justify-center flex-1 py-1 min-h-[44px] rounded-2xl transition-all duration-200 ${
+              className={`relative flex flex-col items-center justify-center w-full py-2 min-h-[52px] rounded-xl sm:rounded-full transition-all duration-200 active:scale-95 touch-manipulation ${
                 isActive 
-                  ? 'text-white opacity-100 scale-105' 
-                  : 'text-white/60 hover:text-white/90 hover:opacity-100'
+                  ? 'bg-gradient-to-r from-slate-900 via-blue-900 to-emerald-900 text-white shadow-md shadow-slate-900/20 font-bold' 
+                  : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/60 font-semibold'
               }`}
+              title={tab.label}
             >
-              <div className="relative">
-                <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5] text-rose-400' : 'stroke-[1.75]'}`} />
+              <div className="relative flex items-center justify-center">
+                <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5] text-emerald-300' : 'stroke-[1.75] text-slate-500'}`} />
                 {tab.badge !== undefined && (
-                  <span className="absolute -top-1.5 -right-2.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-extrabold text-white shadow-xs">
+                  <span className="absolute -top-1.5 -right-3 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-600 px-1 text-[10px] font-black text-white ring-2 ring-white shadow-xs animate-pulse">
                     {tab.badge}
                   </span>
                 )}
               </div>
-              <span className={`text-[10px] mt-0.5 tracking-tight truncate max-w-[58px] font-semibold ${
-                isActive ? 'text-white font-bold' : 'text-white/70'
+              <span className={`text-[10.5px] mt-1 tracking-tight text-center leading-tight break-words hyphens-auto px-1 ${
+                isActive ? 'text-white font-bold' : 'text-slate-600'
               }`}>
-                {tab.label}
+                {tab.emoji} {tab.label}
               </span>
-              {isActive && (
-                <span className="absolute -bottom-0.5 w-3 h-1 rounded-full bg-rose-400 shadow-sm shadow-rose-400/80" />
-              )}
             </button>
           );
         })}

@@ -26,6 +26,8 @@ interface RecipesViewProps {
   products: Product[];
   members: UserMember[];
   activeMemberId?: string;
+  isPro?: boolean;
+  onOpenChefIa: () => void;
   onSaveRecipe: (recipeData: Omit<Recipe, 'id' | 'house_id' | 'created_at' | 'updated_at'>, recipeId?: string) => Promise<void>;
   onDeleteRecipe: (recipeId: string) => Promise<void>;
   onPrepareRecipe: (recipeId: string, servings: number, memberId?: string) => Promise<void>;
@@ -39,6 +41,8 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
   products,
   members,
   activeMemberId,
+  isPro = false,
+  onOpenChefIa,
   onSaveRecipe,
   onDeleteRecipe,
   onPrepareRecipe,
@@ -130,50 +134,70 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
   };
 
   return (
-    <div className="space-y-6 max-w-6xl mx-auto pb-16 animate-in fade-in duration-300">
-      {/* 1. Header com Frosted Glass */}
-      <div className="bg-white/70 backdrop-blur-md border border-white/40 p-6 rounded-[2.5rem] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-500 text-white flex items-center justify-center shadow-lg shadow-rose-200 shrink-0">
-            <ChefHat className="w-6 h-6" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-slate-800 tracking-tight">
-              Receitas Familiares
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500">
-              Conectadas diretamente ao estoque da despensa e ao consumo da casa
-            </p>
-          </div>
-        </div>
+    <div className="space-y-6 max-w-full overflow-x-hidden pb-16 animate-in fade-in duration-300">
+      {/* 1. Hero Card: CHEF IA MARKETBUY */}
+      <div className="bg-gradient-to-r from-slate-900 via-blue-950 to-emerald-950 text-white p-6 sm:p-7 rounded-[2.5rem] border border-white/20 shadow-xl shadow-slate-950/20 relative overflow-hidden space-y-4">
+        <div className="absolute top-0 right-0 w-72 h-72 bg-emerald-500/20 rounded-full blur-3xl -mr-20 -mt-20 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl -ml-20 -mb-20 pointer-events-none" />
 
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            onClick={() => {
-              setRecipeToEdit(null);
-              setIsCreateModalOpen(true);
-            }}
-            className="bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white px-5 py-2.5 rounded-full font-bold shadow-md shadow-rose-200 active:scale-95 transition text-xs sm:text-sm flex items-center justify-center gap-2 shrink-0 self-start sm:self-auto"
-          >
-            <Plus className="w-4 h-4 stroke-[3]" />
-            <span>+ Nova Receita</span>
-          </button>
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="flex items-start gap-4">
+            <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-emerald-400 to-teal-300 text-slate-950 flex items-center justify-center text-3xl shadow-lg shadow-emerald-500/30 shrink-0 font-bold">
+              🍳
+            </div>
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                  Chef IA — Assistente de Receitas
+                </h1>
+                <span className={`text-[10px] font-black uppercase px-2.5 py-0.5 rounded-full ${
+                  isPro ? 'bg-emerald-400 text-slate-950' : 'bg-white/10 text-emerald-300 border border-emerald-500/30'
+                }`}>
+                  {isPro ? 'PRO • Ilimitado' : 'Free • 1 Receita/dia'}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-300 max-w-xl leading-relaxed">
+                A IA analisa o estoque real da sua despensa e cria pratos deliciosos no <strong>Modo Guiado</strong> (perguntas dinâmicas de complexidade) ou <strong>Modo Descritivo Livre</strong>.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2.5 shrink-0 self-start md:self-center">
+            <button
+              onClick={onOpenChefIa}
+              className="px-6 py-3.5 rounded-full bg-gradient-to-r from-emerald-400 via-teal-300 to-emerald-400 hover:brightness-105 text-slate-950 font-black text-xs sm:text-sm flex items-center gap-2 shadow-lg shadow-emerald-500/25 active:scale-95 transition min-h-[46px]"
+            >
+              <Sparkles className="w-4 h-4 text-slate-950" />
+              <span>✨ Consultar Chef IA</span>
+            </button>
+
+            <button
+              onClick={() => {
+                setRecipeToEdit(null);
+                setIsCreateModalOpen(true);
+              }}
+              className="px-4 py-3.5 rounded-full bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold text-xs sm:text-sm flex items-center gap-1.5 transition min-h-[46px]"
+            >
+              <Plus className="w-4 h-4" />
+              <span className="hidden sm:inline">+ Manual</span>
+            </button>
+          </div>
         </div>
       </div>
 
       {/* 2. Destaque: "O que posso fazer com o que tenho?" */}
       {readyToCookRecipes.length > 0 && (
-        <div className="bg-gradient-to-br from-rose-50/80 via-white/80 to-amber-50/60 backdrop-blur-md rounded-[2.5rem] p-6 border border-rose-100 shadow-xs space-y-4">
+        <div className="bg-white/80 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/80 shadow-xs space-y-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="w-9 h-9 rounded-xl bg-rose-500 text-white flex items-center justify-center shadow-xs">
-                <Flame className="w-5 h-5 text-amber-200" />
+              <div className="w-9 h-9 rounded-xl bg-emerald-600 text-white flex items-center justify-center shadow-xs">
+                <Flame className="w-5 h-5 text-amber-300" />
               </div>
               <div>
                 <h2 className="text-base font-bold text-slate-800 flex items-center gap-2">
-                  <span>O que posso fazer com o que tenho?</span>
-                  <span className="text-[10px] uppercase font-bold bg-rose-100 text-rose-700 px-2 py-0.5 rounded-full">
-                    {readyToCookRecipes.length} sugestões
+                  <span>O que posso fazer com o que tenho na despensa?</span>
+                  <span className="text-[10px] uppercase font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
+                    {readyToCookRecipes.length} disponíveis
                   </span>
                 </h2>
                 <p className="text-xs text-slate-500">
@@ -233,10 +257,10 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
                   <div className="pt-3 mt-2 border-t border-slate-100 flex items-center justify-between gap-2">
                     <button
                       onClick={() => setSelectedRecipeForDetail(recipe)}
-                      className="w-full py-2.5 px-3 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs active:scale-95"
+                      className="w-full py-2.5 px-3 rounded-2xl bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs active:scale-95"
                     >
-                      <ChefHat className="w-3.5 h-3.5" />
-                      <span>🍳 Fazer Receita</span>
+                      <ChefHat className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>🍳 Preparar Receita</span>
                     </button>
                   </div>
                 </div>
@@ -247,15 +271,15 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
       )}
 
       {/* 3. Barra de Busca e Filtros */}
-      <div className="bg-white/70 backdrop-blur-md rounded-3xl p-4 border border-white/40 shadow-xs flex flex-col sm:flex-row gap-3">
+      <div className="bg-white/80 backdrop-blur-md rounded-3xl p-4 border border-white/60 shadow-xs flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
           <input
             type="text"
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
-            placeholder="Buscar receita ou ingrediente (ex: arroz, ovos, bolo)..."
-            className="w-full pl-9 pr-4 py-2 rounded-2xl bg-white/80 border border-slate-200 text-slate-800 text-xs sm:text-sm focus:ring-2 focus:ring-rose-500 outline-none transition"
+            placeholder="Buscar receita ou ingrediente (ex: arroz, ovos, frango)..."
+            className="w-full pl-9 pr-4 py-2 rounded-2xl bg-white border border-slate-200 text-slate-800 text-xs sm:text-sm focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 outline-none transition"
           />
         </div>
 
@@ -264,7 +288,7 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
             onClick={() => setActiveFilter('all')}
             className={`px-3 py-1.5 rounded-full text-xs font-bold transition shrink-0 ${
               activeFilter === 'all'
-                ? 'bg-rose-500 text-white shadow-xs'
+                ? 'bg-slate-900 text-white shadow-xs'
                 : 'bg-white/80 text-slate-600 hover:bg-white'
             }`}
           >
@@ -312,27 +336,43 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
 
       {/* 4. Lista Principal de Receitas */}
       {filteredRecipes.length === 0 ? (
-        <div className="bg-white/70 backdrop-blur-md rounded-[2.5rem] p-10 border border-white/40 shadow-xs text-center space-y-3">
-          <div className="w-16 h-16 rounded-3xl bg-rose-50 border border-rose-100 text-rose-500 flex items-center justify-center mx-auto shadow-xs">
-            <ChefHat className="w-8 h-8" />
+        <div className="bg-white/75 backdrop-blur-md rounded-[2.5rem] p-8 sm:p-12 border border-white/50 shadow-xs text-center space-y-4 max-w-full">
+          <div className="w-16 h-16 rounded-3xl bg-rose-50 border border-rose-100/80 text-rose-500 flex items-center justify-center mx-auto text-3xl shadow-inner">
+            🍳
           </div>
-          <h3 className="text-base font-bold text-slate-800">
-            Nenhuma receita encontrada
-          </h3>
-          <p className="text-xs text-slate-500 max-w-md mx-auto">
-            {searchTerm 
-              ? `Nenhuma receita corresponde à busca "${searchTerm}". Tente pesquisar por outro nome ou ingrediente.`
-              : 'Cadastre as receitas favoritas da família para descobrir automaticamente o que é possível cozinhar com os ingredientes atuais da despensa.'}
-          </p>
-          <button
-            onClick={() => {
-              setRecipeToEdit(null);
-              setIsCreateModalOpen(true);
-            }}
-            className="px-5 py-2.5 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs shadow-md shadow-rose-200 transition"
-          >
-            + Cadastrar Nova Receita
-          </button>
+          <div className="space-y-1.5">
+            <h3 className="text-lg font-bold text-slate-800 break-words hyphens-auto">
+              {recipes.length === 0
+                ? 'O livro de receitas ainda está em branco!'
+                : 'Nenhuma receita encontrada'}
+            </h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto leading-relaxed break-words hyphens-auto">
+              {recipes.length === 0
+                ? 'O Chef IA e o MarketBuy analisam a despensa e avisam em tempo real quando você tiver todos os ingredientes disponíveis!'
+                : searchTerm 
+                ? `Nenhuma receita corresponde à busca "${searchTerm}". Tente pesquisar por outro nome ou limpe os filtros.`
+                : 'Nenhuma receita corresponde ao filtro selecionado no momento.'}
+            </p>
+          </div>
+          <div className="pt-2 flex items-center justify-center gap-2">
+            <button
+              onClick={onOpenChefIa}
+              className="px-6 py-3.5 rounded-full bg-gradient-to-r from-emerald-600 via-teal-600 to-slate-900 hover:from-emerald-700 hover:to-black text-white font-bold text-xs sm:text-sm shadow-md shadow-emerald-500/20 active:scale-95 transition min-h-[46px] touch-manipulation inline-flex items-center gap-2"
+            >
+              <Sparkles className="w-4 h-4 text-emerald-300" />
+              <span className="break-words hyphens-auto">Gerar com Chef IA</span>
+            </button>
+            <button
+              onClick={() => {
+                setRecipeToEdit(null);
+                setIsCreateModalOpen(true);
+              }}
+              className="px-5 py-3.5 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs sm:text-sm transition min-h-[46px]"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Criar Manualmente</span>
+            </button>
+          </div>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -343,17 +383,17 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
             return (
               <div
                 key={recipe.id}
-                className="bg-white/70 backdrop-blur-md rounded-[2.5rem] border border-white/40 shadow-xs p-5 sm:p-6 flex flex-col justify-between hover:shadow-md transition space-y-4"
+                className="bg-white/75 backdrop-blur-md rounded-[2.5rem] border border-white/50 shadow-xs p-5 sm:p-6 flex flex-col justify-between hover:shadow-md transition space-y-4 max-w-full overflow-hidden"
               >
                 {/* Header do Card */}
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-snug">
+                    <div className="min-w-0 flex-1">
+                      <h3 className="text-lg font-bold text-slate-800 tracking-tight leading-snug break-words hyphens-auto">
                         {recipe.name}
                       </h3>
                       {creator && (
-                        <span className="text-[11px] text-slate-400">
+                        <span className="text-[11px] text-slate-400 block break-words hyphens-auto">
                           Cadastrada por {creator.name}
                         </span>
                       )}
@@ -368,33 +408,33 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
                         : 'bg-rose-50 text-rose-800 border border-rose-200'
                     }`}>
                       {availability.status === 'can_make_now' ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
+                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
                       ) : availability.status === 'missing_one' || availability.status === 'missing_few' ? (
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600" />
+                        <AlertTriangle className="w-3.5 h-3.5 text-amber-600 shrink-0" />
                       ) : (
-                        <XCircle className="w-3.5 h-3.5 text-rose-600" />
+                        <XCircle className="w-3.5 h-3.5 text-rose-600 shrink-0" />
                       )}
-                      <span>{availability.statusBadge.label}</span>
+                      <span className="break-words hyphens-auto">{availability.statusBadge.label}</span>
                     </span>
                   </div>
 
                   {recipe.description && (
-                    <p className="text-xs text-slate-600 line-clamp-2">
+                    <p className="text-xs text-slate-600 line-clamp-2 break-words hyphens-auto">
                       {recipe.description}
                     </p>
                   )}
 
                   {/* Informações Rápidas */}
-                  <div className="flex items-center gap-3 pt-1 text-xs text-slate-500 font-medium">
+                  <div className="flex items-center gap-3 pt-1 text-xs text-slate-500 font-medium flex-wrap">
                     {recipe.prep_time_minutes && (
                       <span className="flex items-center gap-1">
-                        <Clock className="w-3.5 h-3.5 text-slate-400" />
+                        <Clock className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         {recipe.prep_time_minutes} min
                       </span>
                     )}
                     {recipe.servings && (
                       <span className="flex items-center gap-1">
-                        <Users className="w-3.5 h-3.5 text-slate-400" />
+                        <Users className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                         {recipe.servings} porções
                       </span>
                     )}
@@ -407,12 +447,12 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
                 {/* Resumo de Ingredientes Faltantes */}
                 {availability.missingIngredientsList.length > 0 && (
                   <div className="bg-amber-50/70 p-3 rounded-2xl border border-amber-200/60 text-xs space-y-1.5">
-                    <span className="font-bold text-amber-900 block text-[11px] uppercase tracking-wider">
+                    <span className="font-bold text-amber-900 block text-[11px] uppercase tracking-wider break-words hyphens-auto">
                       Falta para fazer esta receita:
                     </span>
                     <div className="flex items-center gap-2 flex-wrap">
                       {availability.missingIngredientsList.slice(0, 2).map((m, i) => (
-                        <span key={i} className="bg-white/80 px-2 py-0.5 rounded-lg text-amber-900 font-medium text-[11px] border border-amber-200/50">
+                        <span key={i} className="bg-white/80 px-2.5 py-1 rounded-lg text-amber-900 font-medium text-[11px] border border-amber-200/50 break-words hyphens-auto">
                           {m.name} (+{formatUnitDisplay(m.deficit, m.unit)})
                         </span>
                       ))}
@@ -430,14 +470,14 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
                   <div className="flex items-center gap-1">
                     <button
                       onClick={() => handleEditClick(recipe)}
-                      className="w-8 h-8 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition"
+                      className="w-10 h-10 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100 flex items-center justify-center transition min-h-[40px] min-w-[40px] touch-manipulation"
                       title="Editar receita"
                     >
                       <Edit3 className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setRecipeToDelete(recipe)}
-                      className="w-8 h-8 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition"
+                      className="w-10 h-10 rounded-xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition min-h-[40px] min-w-[40px] touch-manipulation"
                       title="Excluir receita"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -446,10 +486,10 @@ export const RecipesView: React.FC<RecipesViewProps> = ({
 
                   <button
                     onClick={() => setSelectedRecipeForDetail(recipe)}
-                    className="px-4 py-2 rounded-full bg-rose-500 hover:bg-rose-600 text-white font-bold text-xs flex items-center gap-1.5 transition shadow-2xs active:scale-95"
+                    className="px-5 py-2.5 rounded-full bg-slate-900 hover:bg-black text-white font-bold text-xs flex items-center gap-1.5 transition shadow-xs active:scale-95 min-h-[44px] touch-manipulation"
                   >
-                    <ChefHat className="w-3.5 h-3.5" />
-                    <span>🍳 Fazer Receita</span>
+                    <ChefHat className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+                    <span className="break-words hyphens-auto">Ver & Preparar</span>
                   </button>
                 </div>
               </div>

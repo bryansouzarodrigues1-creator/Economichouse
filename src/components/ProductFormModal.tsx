@@ -255,9 +255,9 @@ export const ProductFormModal: React.FC<ProductFormModalProps> = ({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3.5 rounded-full bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white font-bold text-sm shadow-md shadow-rose-100 transition active:scale-98"
+              className="w-full py-3.5 rounded-full bg-slate-900 hover:bg-black text-white font-bold text-sm shadow-md shadow-slate-900/15 transition active:scale-98"
             >
-              {isSubmitting ? 'Salvando...' : productToEdit ? 'Atualizar Produto' : 'Cadastrar Produto'}
+              {isSubmitting ? 'Salvando...' : productToEdit ? 'Atualizar Produto' : 'Adicionar ao Estoque'}
             </button>
           </div>
         </form>

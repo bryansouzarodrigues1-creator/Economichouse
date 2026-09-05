@@ -130,10 +130,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               {todayFormatted}
             </span>
             <h1 className="text-2xl sm:text-3xl font-black text-slate-800 leading-tight mt-0.5">
-              Olá, {activeMember?.name?.split(' ')[0] || 'Mãe'}!
+              Olá, {activeMember?.name?.split(' ')[0] || 'Membro'}!
             </h1>
             <p className="text-slate-500 text-xs sm:text-sm mt-0.5 max-w-xl">
-              Tudo simples e direto para sua rotina de casa.
+              Visão geral, previsão de reposição e inventário da residência.
             </p>
           </div>
 
@@ -145,13 +145,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* 2. OS 3 GRANDES BOTÕES DE AÇÕES RÁPIDAS (Foco na Usabilidade da Mãe) */}
+      {/* 2. OS 3 GRANDES BOTÕES DE AÇÕES RÁPIDAS */}
       <div className="space-y-2.5">
         <h2 className="text-xs font-bold uppercase tracking-wider text-slate-500 px-1">
-          O que você deseja fazer agora?
+          Ações Rápidas da Residência
         </h2>
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3.5">
-          {/* Botão 1: [- Retirar do Estoque] */}
+          {/* Botão 1: [- Item Consumido] */}
           <button
             onClick={() => onOpenQuickAction('consumption')}
             id="dash-btn-retirar"
@@ -163,45 +163,45 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <Minus className="w-6 h-6 stroke-[3]" />
               </div>
               <span className="text-xs font-bold bg-white/25 px-2.5 py-1 rounded-full text-white backdrop-blur-xs">
-                Uso diário
+                Consumo
               </span>
             </div>
             <div>
               <h3 className="text-lg sm:text-xl font-black tracking-tight leading-snug">
-                - Retirar do Estoque
+                - Item Consumido
               </h3>
               <p className="text-xs text-rose-100/90 font-medium mt-0.5">
-                Dar baixa rápida ao usar um produto
+                Dar baixa rápida em produto do estoque
               </p>
             </div>
           </button>
 
-          {/* Botão 2: [+ Entrada de Compras] */}
+          {/* Botão 2: [+ Confirmar Compra] */}
           <button
             onClick={() => onOpenQuickAction('purchase')}
             id="dash-btn-entrada"
             className="group relative bg-gradient-to-br from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 active:scale-98 text-white rounded-[2rem] p-5 sm:p-6 shadow-lg shadow-emerald-500/25 transition-all text-left flex flex-col justify-between min-h-[135px] border border-emerald-400/40"
-            title="Adicionar o que chegou das compras do mercado"
+            title="Adicionar o que chegou das compras ao estoque"
           >
             <div className="flex items-center justify-between w-full">
               <div className="w-12 h-12 rounded-2xl bg-white/20 backdrop-blur-xs flex items-center justify-center text-white text-xl font-black shadow-inner">
                 <Plus className="w-6 h-6 stroke-[3]" />
               </div>
               <span className="text-xs font-bold bg-white/25 px-2.5 py-1 rounded-full text-white backdrop-blur-xs">
-                Chegou do mercado
+                Entrada
               </span>
             </div>
             <div>
               <h3 className="text-lg sm:text-xl font-black tracking-tight leading-snug">
-                + Entrada de Compras
+                + Confirmar Compra
               </h3>
               <p className="text-xs text-emerald-100/90 font-medium mt-0.5">
-                Adicionar o que chegou do mercado
+                Registrar novas compras no estoque
               </p>
             </div>
           </button>
 
-          {/* Botão 3: [🛒 O que Comprar?] */}
+          {/* Botão 3: [🛒 Lista de Compras] */}
           <button
             onClick={() => onNavigateTab('shopping_list')}
             id="dash-btn-comprar"
@@ -220,10 +220,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
             <div>
               <h3 className="text-lg sm:text-xl font-black tracking-tight leading-snug">
-                🛒 O que Comprar?
+                🛒 Lista de Compras
               </h3>
               <p className="text-xs text-slate-300 font-medium mt-0.5">
-                Lista inteligente pelo uso da família
+                Reposição inteligente calculada por taxa de uso
               </p>
             </div>
           </button>

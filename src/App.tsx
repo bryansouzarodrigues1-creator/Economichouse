@@ -22,7 +22,7 @@ import {
   apiDeleteRecipe,
   apiPrepareRecipe
 } from './services/api';
-import { Product, UserMember, Recipe } from './types';
+import { Product, UserMember, Recipe, SubscriptionPlan } from './types';
 import { calculateProductMetrics } from './utils/mathEngine';
 import { Navbar } from './components/Navbar';
 import { BottomNav, NavTab } from './components/BottomNav';
@@ -33,6 +33,11 @@ import { CategoryManagerModal } from './components/CategoryManagerModal';
 import { MemberManagerModal } from './components/MemberManagerModal';
 import { RecipeModal } from './components/RecipeModal';
 import { RecipeDetailModal } from './components/RecipeDetailModal';
+import { ProductCatalogModal } from './components/ProductCatalogModal';
+import { ChefIaModal } from './components/ChefIaModal';
+import { MarketBuyProModal } from './components/MarketBuyProModal';
+import { CatalogItem } from './data/nativeCatalog';
+import { addShoppingItem } from './utils/shoppingListStore';
 
 import { DashboardView } from './views/DashboardView';
 import { StockView } from './views/StockView';
@@ -46,7 +51,7 @@ import { Loader2 } from 'lucide-react';
 export default function App() {
   const [data, setData] = useState<FullHouseData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+  const [activeTab, setActiveTab] = useState<NavTab>('stock');
   const [activeMemberId, setActiveMemberId] = useState<string>('');
 
   // Modals state
@@ -69,6 +74,12 @@ export default function App() {
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+
+  // MarketBuy SaaS Modals
+  const [isCatalogModalOpen, setIsCatalogModalOpen] = useState(false);
+  const [catalogInitialQuery, setCatalogInitialQuery] = useState('');
+  const [isChefIaModalOpen, setIsChefIaModalOpen] = useState(false);
+  const [isProModalOpen, setIsProModalOpen] = useState(false);
 
   // Recipe Modals state
   const [recipeModal, setRecipeModal] = useState<{
@@ -104,11 +115,11 @@ export default function App() {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-4 relative overflow-hidden" style={{ background: 'radial-gradient(at top left, #e0eafc, #cfdef3)' }}>
         <div className="glass-card rounded-[2.5rem] p-8 max-w-sm w-full text-center flex flex-col items-center shadow-xl">
-          <div className="w-14 h-14 rounded-2xl bg-indigo-600 flex items-center justify-center text-white shadow-lg shadow-indigo-200 mb-4 animate-pulse">
-            <Loader2 className="w-7 h-7 animate-spin" />
+          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-slate-900 to-emerald-600 flex items-center justify-center text-white shadow-lg shadow-emerald-600/20 mb-4 animate-pulse text-2xl">
+            🛒
           </div>
-          <h1 className="text-xl font-black text-slate-800 tracking-tight">CasaControle</h1>
-          <p className="text-xs text-slate-500 mt-1">Carregando despensa e consumo familiar...</p>
+          <h1 className="text-xl font-black text-slate-800 tracking-tight">MarketBuy</h1>
+          <p className="text-xs text-slate-500 mt-1">Carregando despensa inteligente e receitas...</p>
         </div>
       </div>
     );
@@ -204,29 +215,84 @@ export default function App() {
     handleOpenQuickAction('purchase', productId);
   };
 
+  // MarketBuy Catalog & Plan Handlers
+  const handleAddToShoppingListFromCatalog = (item: CatalogItem, quantity?: number) => {
+    addShoppingItem(activeHouseId, {
+      name: item.name,
+      quantity: quantity || 1,
+      unit: item.defaultUnit,
+      categoryName: item.category,
+      source: 'catalog',
+      icon: item.icon,
+    });
+  };
+
+  const handleAddToPantryFromCatalog = async (item: CatalogItem, quantity?: number) => {
+    const qty = quantity || item.defaultMinStock || 1;
+    const existing = data.products.find(p => p.name.toLowerCase() === item.name.toLowerCase());
+    if (existing) {
+      await handleAdjustStock({
+        productId: existing.id,
+        newQuantity: existing.current_quantity + qty,
+        reason: 'Adicionado via Catálogo MarketBuy',
+      });
+    } else {
+      const cat = data.categories.find(c => c.name.toLowerCase() === item.category.toLowerCase()) || data.categories[0];
+      const isWeight = item.defaultUnit === 'kg' || item.defaultUnit === 'g' || item.defaultUnit === 'l' || item.defaultUnit === 'ml';
+      await handleSaveProduct({
+        name: item.name,
+        category_id: cat?.id || '',
+        current_quantity: qty,
+        min_quantity: item.defaultMinStock || 1,
+        unit: item.defaultUnit,
+        unit_type: isWeight ? 'weight_volume' : 'fractional_count',
+        is_active: true,
+      });
+    }
+  };
+
+  const handleUpdatePlan = async (newPlan: SubscriptionPlan) => {
+    setData(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        house: {
+          ...prev.house,
+          plan: newPlan,
+          subscription_plan: newPlan,
+        }
+      };
+    });
+  };
+
   return (
-    <div className="min-h-screen text-slate-800 flex flex-col font-sans selection:bg-rose-200 selection:text-rose-950 relative">
-      {/* Ambient glowing spots for luminous frosted glass refraction with rose tones */}
+    <div className="min-h-screen text-slate-800 flex flex-col font-sans selection:bg-emerald-200 selection:text-emerald-950 relative max-w-[100vw] overflow-x-hidden box-border">
+      {/* Ambient glowing spots for luminous frosted glass refraction */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden z-0">
-        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-rose-300/40 blur-3xl" />
-        <div className="absolute top-1/4 -right-32 w-96 h-96 rounded-full bg-pink-200/40 blur-3xl" />
-        <div className="absolute bottom-10 left-1/3 w-80 h-80 rounded-full bg-fuchsia-200/30 blur-3xl" />
-        <div className="absolute top-2/3 -left-20 w-72 h-72 rounded-full bg-rose-200/35 blur-3xl" />
+        <div className="absolute -top-32 -left-32 w-96 h-96 rounded-full bg-emerald-200/30 blur-3xl" />
+        <div className="absolute top-1/4 -right-32 w-96 h-96 rounded-full bg-teal-100/30 blur-3xl" />
+        <div className="absolute bottom-10 left-1/3 w-80 h-80 rounded-full bg-blue-100/30 blur-3xl" />
+        <div className="absolute top-2/3 -left-20 w-72 h-72 rounded-full bg-emerald-100/30 blur-3xl" />
       </div>
 
-      <div className="relative z-10 flex flex-col min-h-screen">
+      <div className="relative z-10 flex flex-col min-h-screen max-w-full overflow-x-hidden">
         {/* Top Navbar */}
         <Navbar
           house={data.house}
           members={data.members}
           activeMemberId={activeMemberId}
-          purchases={data.purchases}
           onSelectMember={setActiveMemberId}
-          onOpenQuickAction={(t) => handleOpenQuickAction(t || 'consumption')}
+          isSettingsActive={activeTab === 'settings'}
+          onOpenSettings={() => setActiveTab(activeTab === 'settings' ? 'stock' : 'settings')}
+          onOpenSearchOrCatalog={(query) => {
+            setCatalogInitialQuery(query || '');
+            setIsCatalogModalOpen(true);
+          }}
+          onOpenProModal={() => setIsProModalOpen(true)}
         />
 
         {/* Main Content Area */}
-        <main className="flex-1 max-w-6xl w-full mx-auto px-4 sm:px-6 pt-5 pb-28">
+        <main className="flex-1 max-w-6xl w-full mx-auto px-3.5 sm:px-6 pt-4 pb-28 min-w-0">
           {activeTab === 'dashboard' && (
             <DashboardView
               products={data.products}
@@ -259,6 +325,8 @@ export default function App() {
             products={data.products}
             members={data.members}
             activeMemberId={activeMemberId}
+            isPro={data.house.plan === 'pro' || data.house.subscription_plan === 'pro'}
+            onOpenChefIa={() => setIsChefIaModalOpen(true)}
             onSaveRecipe={async (recipeData, recipeId) => {
               if (recipeId) {
                 await handleUpdateRecipe(recipeData);
@@ -388,6 +456,40 @@ export default function App() {
         onDelete={handleDeleteRecipe}
         onPrepare={handlePrepareRecipe}
         onAddToShoppingList={handleAddToShoppingList}
+      />
+
+      {/* MarketBuy SaaS Modals */}
+      <ProductCatalogModal
+        isOpen={isCatalogModalOpen}
+        onClose={() => setIsCatalogModalOpen(false)}
+        products={data.products}
+        initialSearchQuery={catalogInitialQuery}
+        onAddToShoppingList={handleAddToShoppingListFromCatalog}
+        onAddToPantry={handleAddToPantryFromCatalog}
+      />
+
+      <ChefIaModal
+        isOpen={isChefIaModalOpen}
+        onClose={() => setIsChefIaModalOpen(false)}
+        house={data.house}
+        products={data.products}
+        members={data.members}
+        activeMemberId={activeMemberId}
+        onPrepareRecipe={handlePrepareRecipe}
+        onSaveRecipe={async (recipeData) => {
+          await handleSaveRecipe(recipeData);
+        }}
+        onOpenProModal={() => {
+          setIsChefIaModalOpen(false);
+          setIsProModalOpen(true);
+        }}
+      />
+
+      <MarketBuyProModal
+        isOpen={isProModalOpen}
+        onClose={() => setIsProModalOpen(false)}
+        house={data.house}
+        onUpdatePlan={handleUpdatePlan}
       />
       </div>
     </div>

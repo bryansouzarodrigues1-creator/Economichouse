@@ -101,19 +101,19 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({
         aria-labelledby="modal-recipe-detail-title"
       >
         {/* Header com Frosted Glass */}
-        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-rose-50/70 to-pink-50/70">
+        <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between bg-gradient-to-r from-slate-900 via-blue-950 to-emerald-950 text-white">
           <div className="flex items-center gap-3">
-            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-rose-500 to-pink-500 text-white flex items-center justify-center shadow-md shadow-rose-200 shrink-0">
+            <div className="w-11 h-11 rounded-2xl bg-gradient-to-tr from-emerald-500 to-teal-400 text-slate-950 flex items-center justify-center shadow-md shadow-emerald-500/20 shrink-0">
               <ChefHat className="w-6 h-6" />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 id="modal-recipe-detail-title" className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">
+                <h2 id="modal-recipe-detail-title" className="text-xl sm:text-2xl font-bold text-white leading-tight">
                   {recipe.name}
                 </h2>
               </div>
-              <p className="text-xs text-slate-500">
-                {creator ? `Receita de ${creator.name}` : 'Receita da família'}
+              <p className="text-xs text-slate-300">
+                {creator ? `Receita de ${creator.name}` : 'Receita da residência'}
                 {recipe.prep_time_minutes ? ` • ${recipe.prep_time_minutes} minutos` : ''}
               </p>
             </div>
@@ -125,14 +125,14 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({
                 onClose();
                 onEdit(recipe);
               }}
-              className="w-8 h-8 rounded-full bg-white text-slate-500 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition shadow-2xs"
+              className="w-8 h-8 rounded-full bg-white/10 text-white/80 hover:text-white hover:bg-white/20 flex items-center justify-center transition"
               title="Editar receita"
             >
               <Edit3 className="w-4 h-4" />
             </button>
             <button
               onClick={onClose}
-              className="w-8 h-8 rounded-full bg-white text-slate-400 hover:text-slate-600 flex items-center justify-center transition shadow-2xs"
+              className="w-8 h-8 rounded-full bg-white/10 text-white/80 hover:text-white hover:bg-white/20 flex items-center justify-center transition"
               aria-label="Fechar"
             >
               <X className="w-4 h-4" />
@@ -394,9 +394,9 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({
                   type="button"
                   disabled={isPreparing}
                   onClick={handleConfirmPreparation}
-                  className="px-5 py-2 rounded-full bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-md shadow-rose-200 transition disabled:opacity-50 flex items-center gap-1.5"
+                  className="px-5 py-2 rounded-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md shadow-emerald-500/20 transition disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {isPreparing ? 'Consumindo estoque...' : 'Sim, Confirmar Consumo'}
+                  {isPreparing ? 'Consumindo estoque...' : 'Sim, Descontar da Despensa'}
                 </button>
               </div>
             </div>
@@ -409,12 +409,12 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({
             {availability.canPrepare ? (
               <span className="text-emerald-700 font-bold flex items-center gap-1">
                 <CheckCircle2 className="w-3.5 h-3.5" />
-                Pronta para cozinhar!
+                Pronta para preparar! Todos os ingredientes disponíveis.
               </span>
             ) : (
               <span className="text-amber-700 font-bold flex items-center gap-1">
                 <AlertTriangle className="w-3.5 h-3.5" />
-                Faltam ingredientes obrigatórios.
+                Faltam ingredientes obrigatórios no estoque.
               </span>
             )}
           </div>
@@ -447,13 +447,13 @@ export const RecipeDetailModal: React.FC<RecipeDetailModalProps> = ({
                   onClick={() => setShowConfirmPrepare(true)}
                   className={`px-6 py-2.5 rounded-full font-bold text-xs transition flex items-center gap-2 shadow-md ${
                     availability.canPrepare
-                      ? 'bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white shadow-rose-200 active:scale-95 cursor-pointer'
+                      ? 'bg-gradient-to-r from-emerald-600 via-teal-600 to-slate-900 hover:from-emerald-700 hover:to-black text-white shadow-emerald-500/20 active:scale-95 cursor-pointer'
                       : 'bg-slate-200 text-slate-400 cursor-not-allowed shadow-none'
                   }`}
                   title={availability.canPrepare ? 'Registrar o preparo desta receita e debitar ingredientes' : 'Você precisa repor os ingredientes que faltam'}
                 >
                   <ChefHat className="w-4 h-4" />
-                  <span>🍳 Fazer Receita</span>
+                  <span>🍳 Preparar Receita</span>
                 </button>
               </>
             )}

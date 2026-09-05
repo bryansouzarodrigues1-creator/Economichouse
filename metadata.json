@@ -1,6 +1,6 @@
 {
   "name": "CasaControle",
-  "description": "Sistema familiar direto e leve de gestão de estoque, consumo doméstico, receitas e compras sem desperdício.",
+  "description": "Plataforma SaaS profissional de gestão residencial de estoque, previsão inteligente de reposição, controle de consumo e fluxo de compras.",
   "requestFramePermissions": ["camera", "microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

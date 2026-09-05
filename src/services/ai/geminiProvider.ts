@@ -46,8 +46,8 @@ export function clearStoredGeminiApiKey(): void {
 }
 
 export class GeminiAIProvider implements AIProvider {
-  public readonly providerId = 'gemini-2.5-flash';
-  public readonly providerName = 'Google Gemini 2.5 Flash';
+  public readonly providerId = 'gemini-3.8-flash';
+  public readonly providerName = 'Google Gemini 3.8 Flash';
 
   private getHeaders(): Record<string, string> {
     const headers: Record<string, string> = {

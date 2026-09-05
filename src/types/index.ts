@@ -2,12 +2,38 @@
  * CasaControle - Modelos de Dados Compatíveis com Supabase / PostgreSQL
  */
 
-export type Role = 'admin' | 'member';
+export type Role = 'owner' | 'admin' | 'member';
+export type SubscriptionPlan = 'free' | 'pro';
+
+export function getRoleLabel(role?: Role): string {
+  switch (role) {
+    case 'owner':
+      return 'Proprietário';
+    case 'admin':
+      return 'Administrador';
+    case 'member':
+    default:
+      return 'Membro';
+  }
+}
+
+export function getRoleDescription(role?: Role): string {
+  switch (role) {
+    case 'owner':
+      return 'Gestor da assinatura e da residência';
+    case 'admin':
+      return 'Gerencia itens, receitas e convites da casa';
+    case 'member':
+    default:
+      return 'Acesso a consumo de estoque, inclusão na lista e confirmação de compras';
+  }
+}
 
 export interface House {
   id: string; // UUID
   name: string;
   admin_id: string;
+  plan?: SubscriptionPlan;
   created_at: string;
   updated_at: string;
   settings: HouseSettings;

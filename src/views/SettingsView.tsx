@@ -14,9 +14,12 @@ import {
   CheckCircle2,
   Download,
   Share2,
-  Wifi
+  Wifi,
+  Crown,
+  Sparkles,
+  User
 } from 'lucide-react';
-import { House, UserMember, Category } from '../types';
+import { House, UserMember, Category, getRoleLabel, Role } from '../types';
 import { usePWAInstall } from '../hooks/usePWAInstall';
 import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
@@ -211,31 +214,46 @@ ALTER TABLE public.recipes ENABLE ROW LEVEL SECURITY;`;
   };
 
   return (
-    <div className="space-y-5 pb-6">
+    <div className="space-y-5 pb-6 max-w-full overflow-x-hidden">
       {/* Header */}
-      <div className="bg-white/70 backdrop-blur-md border border-white/40 p-6 rounded-[2rem] shadow-sm">
-        <h1 className="text-2xl font-bold text-slate-800 tracking-tight">Casa & Configurações</h1>
-        <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-          Gerenciamento da família, categorias, banco de dados Supabase e arquitetura.
+      <div className="bg-white/75 backdrop-blur-md border border-white/50 p-5 sm:p-6 rounded-[2rem] shadow-sm">
+        <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight break-words hyphens-auto">
+          ⚙️ Residência & Configurações da Conta
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-500 mt-0.5 break-words hyphens-auto">
+          Gerenciamento de membros da residência, perfis de acesso (RBAC), plano de assinatura SaaS e banco de dados.
         </p>
       </div>
 
-      {/* 1. Identificação da Casa */}
+      {/* 1. Identificação da Residência & Plano de Assinatura */}
       <div className="bg-white/70 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/40 shadow-sm space-y-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-            <Home className="w-6 h-6" />
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-slate-900 text-white flex items-center justify-center shrink-0 shadow-md shadow-slate-900/10">
+              <Home className="w-6 h-6 text-rose-400" />
+            </div>
+            <div>
+              <span className="text-xs font-bold uppercase tracking-wider text-rose-600">Residência Ativa</span>
+              <h2 className="text-lg font-bold text-slate-800 break-words">{house.name || 'Residência Principal'}</h2>
+              <p className="text-xs text-slate-500">Instância privativa com sincronização local e nuvem</p>
+            </div>
           </div>
-          <div>
-            <span className="text-xs font-bold uppercase tracking-wider text-rose-600">Residência Ativa</span>
-            <h2 className="text-lg font-bold text-slate-800">{house.name}</h2>
-            <p className="text-xs text-slate-500">{house.description || 'Ambiente familiar privativo'}</p>
+
+          <div className="flex items-center gap-2">
+            <span className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-black uppercase tracking-wider border ${
+              (house.plan || 'pro') === 'pro'
+                ? 'bg-rose-50 text-rose-700 border-rose-200 shadow-xs'
+                : 'bg-slate-100 text-slate-700 border-slate-200'
+            }`}>
+              <Sparkles className="w-3.5 h-3.5 text-rose-500" />
+              {(house.plan || 'pro') === 'pro' ? 'Plano Pro (Ativo)' : 'Plano Gratuito'}
+            </span>
           </div>
         </div>
 
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 pt-2 border-t border-white/40 text-xs">
           <div className="p-3.5 bg-white/60 backdrop-blur-xs rounded-2xl border border-white/50">
-            <span className="text-slate-400 block font-medium">Moeda Padrão:</span>
+            <span className="text-slate-400 block font-medium">Moeda do Sistema:</span>
             <span className="font-bold text-slate-800">Real Brasileiro (R$ - BRL)</span>
           </div>
           <div className="p-3.5 bg-white/60 backdrop-blur-xs rounded-2xl border border-white/50">
@@ -243,8 +261,8 @@ ALTER TABLE public.recipes ENABLE ROW LEVEL SECURITY;`;
             <span className="font-bold text-slate-800">America/Sao_Paulo</span>
           </div>
           <div className="p-3.5 bg-white/60 backdrop-blur-xs rounded-2xl border border-white/50 col-span-2 sm:col-span-1">
-            <span className="text-slate-400 block font-medium">Tipo de Uso:</span>
-            <span className="font-bold text-rose-600">Familiar (Sem fins comerciais)</span>
+            <span className="text-slate-400 block font-medium">Licença SaaS:</span>
+            <span className="font-bold text-rose-600">Comercial B2C (Ativa)</span>
           </div>
         </div>
       </div>
@@ -342,14 +360,14 @@ ALTER TABLE public.recipes ENABLE ROW LEVEL SECURITY;`;
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 <Users className="w-5 h-5 text-rose-600" />
-                <h3 className="text-base font-bold text-slate-800">Membros da Família</h3>
+                <h3 className="text-base font-bold text-slate-800">Membros da Residência (RBAC)</h3>
               </div>
               <span className="text-xs font-bold bg-white/80 border border-white/60 text-slate-700 px-2.5 py-0.5 rounded-full shadow-2xs">
-                {members.length} {members.length === 1 ? 'pessoa' : 'pessoas'}
+                {members.length} {members.length === 1 ? 'membro' : 'membros'}
               </span>
             </div>
             <p className="text-xs text-slate-500 mb-3">
-              Familiares autorizados a registrar consumos, compras e conferir a despensa.
+              Perfis de acesso: Proprietário (gestor da conta), Administrador (itens e receitas) e Membro (consumo e compras).
             </p>
 
             <div className="space-y-2">
@@ -362,10 +380,20 @@ ALTER TABLE public.recipes ENABLE ROW LEVEL SECURITY;`;
                     >
                       {m.name.charAt(0).toUpperCase()}
                     </span>
-                    <span className="text-xs font-bold text-slate-800">{m.name}</span>
+                    <div>
+                      <span className="text-xs font-bold text-slate-800 block break-words">{m.name}</span>
+                      <span className="text-[10px] text-slate-400 block">{m.email || 'Acesso local'}</span>
+                    </div>
                   </div>
-                  <span className="text-[10px] font-semibold text-slate-500 uppercase">
-                    {m.role === 'admin' ? 'Administrador' : 'Membro'}
+                  <span className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full border ${
+                    m.role === 'owner' 
+                      ? 'bg-rose-50 text-rose-700 border-rose-200' 
+                      : m.role === 'admin' 
+                        ? 'bg-blue-50 text-blue-700 border-blue-200' 
+                        : 'bg-slate-100 text-slate-700 border-slate-200'
+                  }`}>
+                    {m.role === 'owner' ? <Crown className="w-3 h-3 text-rose-600" /> : m.role === 'admin' ? <Shield className="w-3 h-3 text-blue-600" /> : <User className="w-3 h-3 text-slate-500" />}
+                    {getRoleLabel(m.role)}
                   </span>
                 </div>
               ))}
@@ -374,9 +402,9 @@ ALTER TABLE public.recipes ENABLE ROW LEVEL SECURITY;`;
 
           <button
             onClick={onOpenAddMember}
-            className="w-full py-3 rounded-full bg-slate-900/90 hover:bg-slate-900 text-white text-xs font-bold shadow-md shadow-slate-900/10 active:scale-95 transition"
+            className="w-full py-3 rounded-full bg-slate-900 hover:bg-black text-white text-xs font-bold shadow-md shadow-slate-900/10 active:scale-95 transition"
           >
-            + Gerenciar / Adicionar Familiar
+            + Gerenciar / Convidar Membro
           </button>
         </div>
 
@@ -442,27 +470,27 @@ ALTER TABLE public.recipes ENABLE ROW LEVEL SECURITY;`;
         </div>
 
         <div className="bg-slate-900/95 backdrop-blur-md text-slate-200 p-4 rounded-2xl text-xs font-mono overflow-x-auto max-h-44 border border-white/10">
-          <pre>{`-- Arquivo /supabase/schema.sql incluído no projeto
-CREATE TABLE houses (id UUID PRIMARY KEY, name VARCHAR(255), currency VARCHAR(10) DEFAULT 'BRL');
-CREATE TABLE house_members (id UUID, house_id UUID REFERENCES houses(id), name VARCHAR(255), role VARCHAR(50));
-CREATE TABLE categories (id UUID, house_id UUID REFERENCES houses(id), name VARCHAR(255), color VARCHAR(50));
-CREATE TABLE products (id UUID, house_id UUID, category_id UUID, name VARCHAR(255), unit VARCHAR(50), current_stock NUMERIC);
-CREATE TABLE stock_movements (id UUID, product_id UUID, quantity_changed NUMERIC, stock_before NUMERIC, stock_after NUMERIC);
-CREATE TABLE consumptions (id UUID, product_id UUID, quantity NUMERIC, date DATE, member_id UUID);
-CREATE TABLE purchases (id UUID, total_amount NUMERIC, store_name VARCHAR(255), date DATE);
-CREATE TABLE purchase_items (id UUID, purchase_id UUID, product_id UUID, quantity NUMERIC, unit_price NUMERIC);
-CREATE TABLE price_history (id UUID, product_id UUID, unit_price NUMERIC, store_name VARCHAR(255), date DATE);
+          <pre>{`-- PostgreSQL / Supabase Schema Compatível (CasaControle SaaS)
+CREATE TABLE houses (id UUID PRIMARY KEY, name VARCHAR(255), plan VARCHAR(50) DEFAULT 'pro', created_at TIMESTAMPTZ);
+CREATE TABLE house_members (id UUID PRIMARY KEY, house_id UUID REFERENCES houses(id), name VARCHAR(255), email VARCHAR(255), role VARCHAR(50) CHECK (role IN ('owner', 'admin', 'member')), avatar_color VARCHAR(50));
+CREATE TABLE categories (id UUID PRIMARY KEY, house_id UUID REFERENCES houses(id), name VARCHAR(255), color VARCHAR(50));
+CREATE TABLE products (id UUID PRIMARY KEY, house_id UUID, category_id UUID, name VARCHAR(255), unit VARCHAR(50), current_stock NUMERIC);
+CREATE TABLE stock_movements (id UUID PRIMARY KEY, product_id UUID, quantity_changed NUMERIC, stock_before NUMERIC, stock_after NUMERIC);
+CREATE TABLE consumptions (id UUID PRIMARY KEY, product_id UUID, quantity NUMERIC, date DATE, member_id UUID);
+CREATE TABLE purchases (id UUID PRIMARY KEY, total_amount NUMERIC, store_name VARCHAR(255), date DATE);
+CREATE TABLE purchase_items (id UUID PRIMARY KEY, purchase_id UUID, product_id UUID, quantity NUMERIC, unit_price NUMERIC);
+CREATE TABLE price_history (id UUID PRIMARY KEY, product_id UUID, unit_price NUMERIC, store_name VARCHAR(255), date DATE);
 CREATE TABLE recipes (id UUID PRIMARY KEY, house_id UUID, name VARCHAR(255), prep_time_minutes INT, servings INT);
 CREATE TABLE recipe_ingredients (id UUID PRIMARY KEY, recipe_id UUID, product_id UUID, quantity NUMERIC, unit VARCHAR(50));`}</pre>
         </div>
       </div>
 
-      {/* 4. Motor Matemático Doméstico */}
+      {/* 4. Motor Matemático Determinístico & Privacidade Local */}
       <div className="bg-white/70 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/40 shadow-sm space-y-3">
         <div className="flex items-center gap-2.5">
           <Shield className="w-5 h-5 text-emerald-600" />
           <h3 className="text-base font-bold text-slate-800">
-            Motor Matemático Determinístico & Privacidade Familiar
+            Motor Matemático Determinístico & Privacidade Residencial
           </h3>
         </div>
         <p className="text-xs text-slate-600 leading-relaxed">
@@ -470,7 +498,7 @@ CREATE TABLE recipe_ingredients (id UUID PRIMARY KEY, recipe_id UUID, product_id
         </p>
       </div>
 
-      {/* 5. Separação de Dados Demo vs Dados Reais da Família */}
+      {/* 5. Separação de Dados Demo vs Dados de Produção */}
       <div className="bg-white/70 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/40 shadow-sm space-y-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
@@ -478,10 +506,10 @@ CREATE TABLE recipe_ingredients (id UUID PRIMARY KEY, recipe_id UUID, product_id
           </div>
           <div>
             <h3 className="text-base font-bold text-slate-800 tracking-tight">
-              Dados do Sistema: Demonstração vs Família Real
+              Dados da Conta: Demonstração vs Produção Real
             </h3>
             <p className="text-xs text-slate-500">
-              Alterne entre os dados de demonstração (arroz, feijão, histórico) e uma casa limpa para uso real.
+              Alterne entre o conjunto de dados demonstrativo e uma residência limpa pronta para operação real.
             </p>
           </div>
         </div>

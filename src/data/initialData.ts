@@ -3,8 +3,9 @@ import { FullHouseData } from '../services/api';
 export const DEMO_HOUSE_DATA: FullHouseData = {
   house: {
     id: "c0a80101-0000-4000-8000-000000000001",
-    name: "Casa da Família",
+    name: "Residência Principal",
     admin_id: "c0a80101-0000-4000-8000-000000000002",
+    plan: "pro",
     created_at: "2026-08-01T10:00:00Z",
     updated_at: "2026-09-05T10:00:00Z",
     settings: {
@@ -17,20 +18,29 @@ export const DEMO_HOUSE_DATA: FullHouseData = {
     {
       id: "c0a80101-0000-4000-8000-000000000002",
       house_id: "c0a80101-0000-4000-8000-000000000001",
-      name: "Mãe (Administradora)",
-      email: "mae@casacontrole.local",
-      role: "admin",
+      name: "Mariana Silva",
+      email: "mariana.silva@casacontrole.app",
+      role: "owner",
       avatar_color: "#e11d48",
       created_at: "2026-08-01T10:00:00Z"
     },
     {
       id: "c0a80101-0000-4000-8000-000000000003",
       house_id: "c0a80101-0000-4000-8000-000000000001",
-      name: "Filho / Familiar",
-      email: "filho@casacontrole.local",
-      role: "member",
-      avatar_color: "#ec4899",
+      name: "Carlos Eduardo",
+      email: "carlos.eduardo@casacontrole.app",
+      role: "admin",
+      avatar_color: "#1d4ed8",
       created_at: "2026-08-01T10:00:00Z"
+    },
+    {
+      id: "c0a80101-0000-4000-8000-000000000004",
+      house_id: "c0a80101-0000-4000-8000-000000000001",
+      name: "Beatriz Silva",
+      email: "beatriz.silva@casacontrole.app",
+      role: "member",
+      avatar_color: "#0f766e",
+      created_at: "2026-08-10T10:00:00Z"
     }
   ],
   categories: [
@@ -535,7 +545,7 @@ export const DEMO_HOUSE_DATA: FullHouseData = {
     {
       id: "rec-2",
       house_id: "c0a80101-0000-4000-8000-000000000001",
-      name: "Feijão Caseiro da Mãe",
+      name: "Feijão Tradicional da Casa",
       description: "Feijão carioca cremoso e temperado com cebola, perfeito para a semana toda.",
       prep_time_minutes: 40,
       servings: 6,
@@ -636,8 +646,9 @@ export const DEMO_HOUSE_DATA: FullHouseData = {
 export const EMPTY_HOUSE_DATA: FullHouseData = {
   house: {
     id: "c0a80101-0000-4000-8000-000000000001",
-    name: "Minha Casa",
+    name: "Residência Principal",
     admin_id: "c0a80101-0000-4000-8000-000000000002",
+    plan: "pro",
     created_at: new Date().toISOString(),
     updated_at: new Date().toISOString(),
     settings: {
@@ -650,9 +661,9 @@ export const EMPTY_HOUSE_DATA: FullHouseData = {
     {
       id: "c0a80101-0000-4000-8000-000000000002",
       house_id: "c0a80101-0000-4000-8000-000000000001",
-      name: "Eu (Administrador)",
-      email: "eu@casacontrole.local",
-      role: "admin",
+      name: "Mariana Silva",
+      email: "mariana.silva@casacontrole.app",
+      role: "owner",
       avatar_color: "#e11d48",
       created_at: new Date().toISOString()
     }

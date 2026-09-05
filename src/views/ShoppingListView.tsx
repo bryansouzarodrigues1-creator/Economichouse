@@ -1,264 +1,451 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   ShoppingCart, 
   Check, 
   AlertCircle, 
   Clock, 
   CheckCircle2, 
-  HelpCircle,
   ShoppingBag,
   Plus,
-  ArrowRight
+  Trash2,
+  Sparkles,
+  Search,
+  BookOpen,
+  ArrowRight,
+  TrendingDown,
+  Store
 } from 'lucide-react';
+import confetti from 'canvas-confetti';
 import { Product, Consumption, Category } from '../types';
 import { calculateProductMetrics, formatQuantityWithUnit } from '../utils/mathEngine';
+import { 
+  ManualShoppingItem, 
+  getStoredShoppingItems, 
+  removeShoppingItem, 
+  clearAllShoppingItems,
+  addShoppingItem 
+} from '../utils/shoppingListStore';
 
 interface ShoppingListViewProps {
   products: Product[];
   consumptions: Consumption[];
   categories: Category[];
+  houseId: string;
   onOpenQuickAction: (actionType: 'consumption' | 'purchase' | 'stock_adjustment', productId?: string) => void;
+  onConfirmPurchaseDirect: (payload: { name: string; quantity: number; unit: string; productId?: string; price?: number }) => Promise<void>;
+  onOpenCatalog: () => void;
 }
 
 export const ShoppingListView: React.FC<ShoppingListViewProps> = ({
   products,
   consumptions,
   categories,
+  houseId,
   onOpenQuickAction,
+  onConfirmPurchaseDirect,
+  onOpenCatalog,
 }) => {
-  const [filter, setFilter] = useState<'all' | 'buy_now' | 'buy_soon' | 'dont_buy'>('all');
-  const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState<'all' | 'buy_now' | 'buy_soon' | 'manual'>('all');
+  const [persistentItems, setPersistentItems] = useState<ManualShoppingItem[]>([]);
+  const [recentlyBought, setRecentlyBought] = useState<string | null>(null);
+  const [manualInputName, setManualInputName] = useState('');
+  const [manualInputQty, setManualInputQty] = useState('1');
+  const [manualInputUnit, setManualInputUnit] = useState('unidade');
 
-  const items = products.map(product => ({
+  // Carrega itens manuais fixos persistentes
+  useEffect(() => {
+    setPersistentItems(getStoredShoppingItems(houseId));
+  }, [houseId]);
+
+  const reloadPersistentItems = () => {
+    setPersistentItems(getStoredShoppingItems(houseId));
+  };
+
+  // Itens sugeridos pelo cálculo estatístico da despensa
+  const pantryItems = products.map(product => ({
     product,
     metrics: calculateProductMetrics(product, consumptions),
     category: categories.find(c => c.id === product.category_id),
   }));
 
-  const buyNowItems = items.filter(i => i.metrics.recommendation.status === 'buy_now');
-  const buySoonItems = items.filter(i => i.metrics.recommendation.status === 'buy_soon');
-  const dontBuyItems = items.filter(i => i.metrics.recommendation.status === 'dont_buy');
+  // Itens urgentes e em breve da despensa
+  const buyNowPantry = pantryItems.filter(i => i.metrics.recommendation.status === 'buy_now');
+  const buySoonPantry = pantryItems.filter(i => i.metrics.recommendation.status === 'buy_soon');
 
-  const filteredItems = filter === 'all' 
-    ? items 
-    : items.filter(i => i.metrics.recommendation.status === filter);
+  // Executa celebração interativa com confetes e move da lista para o estoque da despensa
+  const handleComprei = async (item: {
+    id: string;
+    name: string;
+    quantity: number;
+    unit: string;
+    productId?: string;
+    isPersistent?: boolean;
+  }) => {
+    // 1. Confetes interativos
+    try {
+      confetti({
+        particleCount: 85,
+        spread: 75,
+        origin: { y: 0.65 },
+        colors: ['#10b981', '#0284c7', '#3b82f6', '#059669', '#f59e0b'],
+      });
+    } catch (e) {
+      // Confetti fallback
+    }
 
-  const toggleCheck = (id: string) => {
-    const next = new Set(checkedItems);
-    if (next.has(id)) next.delete(id);
-    else next.add(id);
-    setCheckedItems(next);
+    // 2. Feedback visual
+    setRecentlyBought(item.name);
+    setTimeout(() => {
+      setRecentlyBought(null);
+    }, 4000);
+
+    // 3. Incrementa estoque na despensa
+    await onConfirmPurchaseDirect({
+      name: item.name,
+      quantity: Number(item.quantity) || 1,
+      unit: item.unit,
+      productId: item.productId,
+    });
+
+    // 4. Se for item fixo persistente, remove da lista
+    if (item.isPersistent) {
+      removeShoppingItem(houseId, item.id);
+      reloadPersistentItems();
+    }
   };
 
+  const handleAddQuickManual = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!manualInputName.trim()) return;
+    
+    // Verifica se já existe produto na despensa para associar o ID
+    const matched = products.find(p => p.name.toLowerCase() === manualInputName.trim().toLowerCase());
+
+    addShoppingItem(houseId, {
+      name: manualInputName.trim(),
+      productId: matched?.id,
+      quantity: Number(manualInputQty) || 1,
+      unit: manualInputUnit || matched?.unit || 'unidade',
+      source: 'manual',
+      icon: '🛒',
+    });
+
+    setManualInputName('');
+    setManualInputQty('1');
+    reloadPersistentItems();
+  };
+
+  const handleRemovePersistent = (id: string) => {
+    removeShoppingItem(houseId, id);
+    reloadPersistentItems();
+  };
+
+  const totalItemsCount = persistentItems.length + buyNowPantry.length + buySoonPantry.length;
+
   return (
-    <div className="space-y-6 pb-6">
-      {/* Title & Explanation */}
-      <div className="bg-white/70 backdrop-blur-md border border-white/40 rounded-[2rem] p-6 shadow-sm space-y-4">
-        <div className="flex items-center gap-3.5">
-          <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center shrink-0">
-            <ShoppingCart className="w-6 h-6" />
+    <div className="space-y-5 pb-8 max-w-full overflow-x-hidden animate-in fade-in duration-300">
+      {/* 1. Header com Design System MarketBuy Frosted Glass */}
+      <div className="bg-white/80 backdrop-blur-xl border border-white/60 rounded-[2.5rem] p-5 sm:p-6 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-slate-900 via-blue-900 to-emerald-800 text-white flex items-center justify-center shrink-0 text-2xl shadow-md shadow-blue-950/15">
+              🛒
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h1 className="text-xl sm:text-2xl font-black text-slate-800 tracking-tight">
+                  Lista de Compras Inteligente
+                </h1>
+                <span className="text-[10px] uppercase font-black px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-200">
+                  {totalItemsCount} {totalItemsCount === 1 ? 'Item' : 'Itens'}
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
+                Itens fixos e reposição calculada pelo consumo real. Clique em <strong>[COMPREI!]</strong> para transferir direto para a despensa.
+              </p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold text-slate-800 tracking-tight">
-              O que realmente precisamos comprar?
-            </h1>
-            <p className="text-xs sm:text-sm text-slate-500 mt-0.5">
-              Evite compras por impulso. O sistema compara seu estoque atual com a média real de consumo da família.
-            </p>
-          </div>
-        </div>
 
-        {/* Status Pills / Counter */}
-        <div className="grid grid-cols-3 gap-2.5 pt-2 border-t border-white/50">
-          <button
-            onClick={() => setFilter('buy_now')}
-            className={`p-3.5 rounded-2xl border text-left transition ${
-              filter === 'buy_now'
-                ? 'bg-rose-50/90 border-rose-300 ring-2 ring-rose-200'
-                : 'bg-white/50 backdrop-blur-xs border-white/50 hover:bg-rose-50/40'
-            }`}
-          >
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-rose-600" />
-              <span className="text-xs font-bold text-rose-900">Comprar</span>
-            </div>
-            <span className="text-xl font-black text-rose-700 mt-1 block">{buyNowItems.length}</span>
-            <span className="text-[10px] text-slate-500 font-medium">Urgente / Sem estoque</span>
-          </button>
-
-          <button
-            onClick={() => setFilter('buy_soon')}
-            className={`p-3.5 rounded-2xl border text-left transition ${
-              filter === 'buy_soon'
-                ? 'bg-amber-50/90 border-amber-300 ring-2 ring-amber-200'
-                : 'bg-white/50 backdrop-blur-xs border-white/50 hover:bg-amber-50/40'
-            }`}
-          >
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-              <span className="text-xs font-bold text-amber-900">Em breve</span>
-            </div>
-            <span className="text-xl font-black text-amber-700 mt-1 block">{buySoonItems.length}</span>
-            <span className="text-[10px] text-slate-500 font-medium">Dura 7 a 15 dias</span>
-          </button>
-
-          <button
-            onClick={() => setFilter('dont_buy')}
-            className={`p-3.5 rounded-2xl border text-left transition ${
-              filter === 'dont_buy'
-                ? 'bg-emerald-50/90 border-emerald-300 ring-2 ring-emerald-200'
-                : 'bg-white/50 backdrop-blur-xs border-white/50 hover:bg-emerald-50/40'
-            }`}
-          >
-            <div className="flex items-center gap-1.5">
-              <span className="w-2.5 h-2.5 rounded-full bg-emerald-600" />
-              <span className="text-xs font-bold text-emerald-900">Não comprar</span>
-            </div>
-            <span className="text-xl font-black text-emerald-700 mt-1 block">{dontBuyItems.length}</span>
-            <span className="text-[10px] text-slate-500 font-medium">Estoque suficiente</span>
-          </button>
-        </div>
-
-        {filter !== 'all' && (
-          <div className="flex justify-end pt-1">
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setFilter('all')}
-              className="text-xs font-bold text-rose-600 hover:text-rose-800 underline"
+              onClick={onOpenCatalog}
+              className="px-5 py-3 rounded-full bg-gradient-to-r from-emerald-600 to-teal-700 hover:from-emerald-700 hover:to-teal-800 text-white font-bold text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition min-h-[46px]"
             >
-              Mostrar todos os itens ({items.length})
+              <BookOpen className="w-4 h-4" />
+              <span>+ Biblioteca de Produtos</span>
             </button>
           </div>
+        </div>
+
+        {/* Feedback visual de compra confirmada */}
+        {recentlyBought && (
+          <div className="p-3.5 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 text-white text-xs font-bold flex items-center justify-between shadow-md shadow-emerald-500/20 animate-in fade-in slide-in-from-top-2 duration-300">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-emerald-200" />
+              <span>Excelente! <strong>{recentlyBought}</strong> foi adicionado com sucesso ao estoque da sua despensa!</span>
+            </div>
+            <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded-full">Estoque Atualizado ✓</span>
+          </div>
         )}
+
+        {/* Formulário Rápido de Adição Manual */}
+        <form onSubmit={handleAddQuickManual} className="pt-2 border-t border-slate-100 flex flex-col sm:flex-row items-center gap-2">
+          <div className="relative flex-1 w-full">
+            <input
+              type="text"
+              value={manualInputName}
+              onChange={(e) => setManualInputName(e.target.value)}
+              placeholder="Adicionar item rápido à lista (ex: Papel Toalha, Sabonete, Frango)..."
+              className="w-full pl-3.5 pr-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-800 text-xs sm:text-sm focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/20 outline-none transition"
+            />
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <input
+              type="number"
+              min="0.1"
+              step="any"
+              value={manualInputQty}
+              onChange={(e) => setManualInputQty(e.target.value)}
+              className="w-20 px-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-800 text-xs sm:text-sm text-center font-bold outline-none"
+            />
+            <select
+              value={manualInputUnit}
+              onChange={(e) => setManualInputUnit(e.target.value)}
+              className="px-3 py-2.5 rounded-2xl bg-white border border-slate-200 text-slate-700 text-xs font-bold outline-none"
+            >
+              <option value="unidade">unidade</option>
+              <option value="kg">kg</option>
+              <option value="g">g</option>
+              <option value="L">L</option>
+              <option value="ml">ml</option>
+              <option value="pacote">pacote</option>
+              <option value="caixa">caixa</option>
+              <option value="dúzia">dúzia</option>
+            </select>
+            <button
+              type="submit"
+              disabled={!manualInputName.trim()}
+              className="px-5 py-2.5 rounded-2xl bg-slate-900 hover:bg-black disabled:bg-slate-300 text-white font-bold text-xs shrink-0 transition active:scale-95 min-h-[42px]"
+            >
+              + Adicionar
+            </button>
+          </div>
+        </form>
       </div>
 
-      {/* Lista de Itens */}
-      <div className="space-y-3.5">
-        {filteredItems.map(({ product, metrics, category }) => {
-          const rec = metrics.recommendation;
-          const isChecked = checkedItems.has(product.id);
+      {/* 2. Filtros de Navegação Rápida */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+        <button
+          onClick={() => setFilter('all')}
+          className={`p-3 rounded-2xl border text-left transition ${
+            filter === 'all'
+              ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
+              : 'bg-white/80 backdrop-blur-md border-white/60 hover:bg-white text-slate-700'
+          }`}
+        >
+          <span className="text-xs font-bold block">Todos</span>
+          <span className="text-lg font-black mt-0.5 block">{totalItemsCount}</span>
+        </button>
 
-          return (
+        <button
+          onClick={() => setFilter('buy_now')}
+          className={`p-3 rounded-2xl border text-left transition ${
+            filter === 'buy_now'
+              ? 'bg-rose-600 text-white border-rose-600 shadow-sm'
+              : 'bg-white/80 backdrop-blur-md border-white/60 hover:bg-white text-slate-700'
+          }`}
+        >
+          <span className="text-xs font-bold block text-rose-600">Comprar Já</span>
+          <span className="text-lg font-black mt-0.5 block text-rose-700">{buyNowPantry.length}</span>
+        </button>
+
+        <button
+          onClick={() => setFilter('buy_soon')}
+          className={`p-3 rounded-2xl border text-left transition ${
+            filter === 'buy_soon'
+              ? 'bg-amber-500 text-white border-amber-500 shadow-sm'
+              : 'bg-white/80 backdrop-blur-md border-white/60 hover:bg-white text-slate-700'
+          }`}
+        >
+          <span className="text-xs font-bold block text-amber-600">Em Breve</span>
+          <span className="text-lg font-black mt-0.5 block text-amber-700">{buySoonPantry.length}</span>
+        </button>
+
+        <button
+          onClick={() => setFilter('manual')}
+          className={`p-3 rounded-2xl border text-left transition ${
+            filter === 'manual'
+              ? 'bg-emerald-600 text-white border-emerald-600 shadow-sm'
+              : 'bg-white/80 backdrop-blur-md border-white/60 hover:bg-white text-slate-700'
+          }`}
+        >
+          <span className="text-xs font-bold block text-emerald-600">Fixos / Adicionados</span>
+          <span className="text-lg font-black mt-0.5 block text-emerald-700">{persistentItems.length}</span>
+        </button>
+      </div>
+
+      {/* 3. Lista Principal com Botão [COMPREI!] */}
+      {totalItemsCount === 0 ? (
+        <div className="p-8 sm:p-12 text-center bg-white/80 backdrop-blur-md rounded-[2.5rem] border border-white/60 shadow-xs space-y-4">
+          <div className="w-16 h-16 rounded-3xl bg-emerald-50 text-emerald-600 border border-emerald-200/60 mx-auto flex items-center justify-center text-3xl shadow-inner">
+            ✨
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-lg font-black text-slate-800">Tudo em ordem no estoque!</h3>
+            <p className="text-xs sm:text-sm text-slate-500 max-w-md mx-auto">
+              Nenhum item está em nível crítico no momento. Você pode navegar na biblioteca nativa e clicar em <strong>[➕ Adicionar se Faltar]</strong> para antecipar compras.
+            </p>
+          </div>
+          <button
+            onClick={onOpenCatalog}
+            className="px-6 py-3.5 rounded-full bg-slate-900 hover:bg-black text-white text-xs sm:text-sm font-bold shadow-md active:scale-95 transition"
+          >
+            Abrir Biblioteca de Produtos
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {/* SEÇÃO 1: ITENS FIXOS PERSISTENTES (CATÁLOGO OU MANUAIS) */}
+          {(filter === 'all' || filter === 'manual') && persistentItems.map((item) => (
             <div
-              key={product.id}
-              className={`bg-white/70 backdrop-blur-md border border-white/40 rounded-[2rem] p-4 sm:p-5 shadow-sm transition ${
-                isChecked ? 'opacity-50 bg-white/40' : 'hover:bg-white/85'
-              }`}
+              key={item.id}
+              className="p-4 sm:p-5 rounded-3xl bg-white/90 backdrop-blur-md border border-white/80 shadow-2xs hover:shadow-sm transition flex flex-col sm:flex-row sm:items-center justify-between gap-4"
             >
-              <div className="flex items-start justify-between gap-3 sm:gap-4">
-                {/* Checkbox para a mãe marcar no supermercado */}
-                <button
-                  onClick={() => toggleCheck(product.id)}
-                  className={`mt-1 w-6 h-6 rounded-lg border-2 flex items-center justify-center shrink-0 transition ${
-                    isChecked 
-                      ? 'bg-emerald-600 border-emerald-600 text-white' 
-                      : 'border-slate-300 bg-white/90 hover:border-emerald-600'
-                  }`}
-                  title="Marcar como colocado no carrinho"
-                >
-                  {isChecked && <Check className="w-4 h-4 stroke-[3]" />}
-                </button>
-
-                {/* Info Principal */}
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap mb-1">
-                    <span 
-                      className="px-2.5 py-0.5 rounded-full text-[10px] font-bold text-white shadow-2xs"
-                      style={{ backgroundColor: category?.color || '#4f46e5' }}
-                    >
-                      {category?.name || 'Geral'}
+              <div className="flex items-start gap-3.5">
+                <div className="w-12 h-12 rounded-2xl bg-emerald-50 border border-emerald-100 text-emerald-700 flex items-center justify-center text-xl shrink-0">
+                  {item.icon || '🛍️'}
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800">
+                      Item Fixo da Lista
                     </span>
-
-                    <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                      rec.status === 'buy_now' 
-                        ? 'bg-rose-100/90 text-rose-800' 
-                        : rec.status === 'buy_soon'
-                        ? 'bg-amber-100/90 text-amber-800'
-                        : 'bg-emerald-100/90 text-emerald-800'
-                    }`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${
-                        rec.status === 'buy_now' ? 'bg-rose-600' : rec.status === 'buy_soon' ? 'bg-amber-500' : 'bg-emerald-600'
-                      }`} />
-                      {rec.statusLabel}
-                    </span>
-
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold border ${
-                      metrics.reliability === 'reliable_estimate'
-                        ? 'bg-teal-50 border-teal-200 text-teal-800'
-                        : metrics.reliability === 'forming_history'
-                        ? 'bg-sky-50 border-sky-200 text-sky-800'
-                        : 'bg-slate-100 border-slate-200 text-slate-600'
-                    }`}>
-                      {metrics.reliabilityLabel}
-                    </span>
+                    {item.source === 'catalog' && (
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                        Via Catálogo
+                      </span>
+                    )}
                   </div>
-
-                  <h3 className={`text-base font-bold text-slate-800 tracking-tight ${isChecked ? 'line-through text-slate-400' : ''}`}>
-                    {product.name}
+                  <h3 className="text-base font-bold text-slate-900 mt-1 leading-snug">
+                    {item.name}
                   </h3>
-
-                  {/* Comparativo de Estoque vs Consumo */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 my-2 text-xs bg-white/60 backdrop-blur-xs p-3 rounded-2xl border border-white/50">
-                    <div>
-                      <span className="text-[10px] text-slate-400 block font-medium">Estoque em Casa:</span>
-                      <strong className="text-slate-800 font-bold">{product.current_stock} {product.unit}</strong>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 block font-medium">Consumo Mensal:</span>
-                      <strong className="text-slate-800 font-bold">
-                        {metrics.avgMonthlyConsumption > 0 ? `~${metrics.avgMonthlyConsumption.toFixed(1)} ${product.unit}` : 'Em formação'}
-                      </strong>
-                    </div>
-                    <div className="col-span-2 sm:col-span-1">
-                      <span className="text-[10px] text-slate-400 block font-medium">Duração Estimada:</span>
-                      <strong className={`${metrics.daysOfStockEstimated && metrics.daysOfStockEstimated <= 7 ? 'text-rose-600' : 'text-emerald-600'} font-bold`}>
-                        {metrics.daysOfStockEstimated !== null && metrics.daysOfStockEstimated < 900
-                          ? `~${metrics.daysOfStockEstimated} dias`
-                          : 'Suficiente'}
-                      </strong>
-                    </div>
-                  </div>
-
-                  {/* Explicação Matemática Transparente */}
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    {rec.explanation}
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Quantidade planejada: <strong className="text-slate-800">{item.quantity} {item.unit}</strong>
                   </p>
                 </div>
+              </div>
 
-                {/* Sugestão de Compra e Botão de Ação */}
-                <div className="text-right shrink-0 flex flex-col items-end justify-between">
-                  {rec.suggestedQuantity > 0 ? (
-                    <div>
-                      <span className="text-[10px] font-bold text-rose-600 uppercase tracking-wider block">
-                        Comprar Aprox.
-                      </span>
-                      <span className="text-lg sm:text-xl font-black text-rose-700">
-                        {formatQuantityWithUnit(rec.suggestedQuantity, product.unit)}
-                      </span>
-                    </div>
-                  ) : (
-                    <div className="text-right">
-                      <span className="text-[10px] font-bold text-emerald-600 uppercase tracking-wider block">
-                        Recomendação
-                      </span>
-                      <span className="text-xs font-extrabold text-emerald-800">
-                        Não Comprar
-                      </span>
-                    </div>
-                  )}
+              {/* Botão [COMPREI!] e Excluir */}
+              <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                <button
+                  onClick={() => handleRemovePersistent(item.id)}
+                  className="w-10 h-10 rounded-2xl text-slate-400 hover:text-rose-600 hover:bg-rose-50 flex items-center justify-center transition"
+                  title="Remover da lista"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </button>
 
-                  <button
-                    onClick={() => onOpenQuickAction('purchase', product.id)}
-                    className="mt-3 flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-slate-900/90 text-white text-xs font-bold hover:bg-slate-900 active:scale-95 shadow-md shadow-slate-900/10 transition"
-                  >
-                    <ShoppingBag className="w-3.5 h-3.5" />
-                    <span>Registrar</span>
-                  </button>
-                </div>
+                <button
+                  onClick={() => handleComprei({
+                    id: item.id,
+                    name: item.name,
+                    quantity: item.quantity,
+                    unit: item.unit,
+                    productId: item.productId,
+                    isPersistent: true,
+                  })}
+                  className="px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition min-h-[44px]"
+                >
+                  <Check className="w-4 h-4 stroke-[3]" />
+                  <span>COMPREI!</span>
+                </button>
               </div>
             </div>
-          );
-        })}
-      </div>
+          ))}
+
+          {/* SEÇÃO 2: ITENS CALCULADOS DA DESPENSA (URGENTES E EM BREVE) */}
+          {(filter === 'all' || filter === 'buy_now' || filter === 'buy_soon') && (
+            <>
+              {[...buyNowPantry, ...buySoonPantry]
+                .filter(i => {
+                  if (filter === 'buy_now') return i.metrics.recommendation.status === 'buy_now';
+                  if (filter === 'buy_soon') return i.metrics.recommendation.status === 'buy_soon';
+                  return true;
+                })
+                .map(({ product, metrics, category }) => {
+                  const rec = metrics.recommendation;
+                  const isNow = rec.status === 'buy_now';
+
+                  return (
+                    <div
+                      key={product.id}
+                      className={`p-4 sm:p-5 rounded-3xl bg-white/90 backdrop-blur-md border shadow-2xs hover:shadow-sm transition flex flex-col sm:flex-row sm:items-center justify-between gap-4 ${
+                        isNow ? 'border-rose-200/80' : 'border-amber-200/80'
+                      }`}
+                    >
+                      <div className="flex items-start gap-3.5">
+                        <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shrink-0 ${
+                          isNow ? 'bg-rose-50 text-rose-600 border border-rose-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
+                        }`}>
+                          {isNow ? '🔴' : '🟡'}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span 
+                              className="px-2 py-0.5 rounded-full text-[10px] font-bold text-white shadow-2xs"
+                              style={{ backgroundColor: category?.color || '#0284c7' }}
+                            >
+                              {category?.name || 'Geral'}
+                            </span>
+                            <span className={`text-[10px] font-extrabold px-2 py-0.5 rounded-full ${
+                              isNow ? 'bg-rose-100 text-rose-800' : 'bg-amber-100 text-amber-800'
+                            }`}>
+                              {rec.statusLabel}
+                            </span>
+                            <span className="text-[10px] text-slate-500 font-medium">
+                              Estoque atual: <strong>{product.current_stock} {product.unit}</strong>
+                            </span>
+                          </div>
+                          <h3 className="text-base font-bold text-slate-900 mt-1 leading-snug">
+                            {product.name}
+                          </h3>
+                          <p className="text-xs text-slate-500 mt-0.5 leading-relaxed">
+                            {rec.explanation}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Botão [COMPREI!] */}
+                      <div className="flex items-center gap-3 self-end sm:self-auto shrink-0">
+                        <div className="text-right">
+                          <span className="text-[10px] font-bold text-slate-400 uppercase block">Comprar</span>
+                          <span className="text-sm font-black text-slate-800">
+                            {formatQuantityWithUnit(rec.suggestedQuantity, product.unit)}
+                          </span>
+                        </div>
+
+                        <button
+                          onClick={() => handleComprei({
+                            id: product.id,
+                            name: product.name,
+                            quantity: rec.suggestedQuantity || 1,
+                            unit: product.unit,
+                            productId: product.id,
+                            isPersistent: false,
+                          })}
+                          className="px-5 py-2.5 rounded-full bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-emerald-800 text-white font-black text-xs sm:text-sm flex items-center gap-2 shadow-md shadow-emerald-500/20 active:scale-95 transition min-h-[44px]"
+                        >
+                          <Check className="w-4 h-4 stroke-[3]" />
+                          <span>COMPREI!</span>
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+            </>
+          )}
+        </div>
+      )}
     </div>
   );
 };
