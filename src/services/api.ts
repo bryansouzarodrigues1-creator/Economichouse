@@ -7,9 +7,13 @@ import {
   Consumption, 
   Purchase, 
   PurchaseItem, 
-  PriceHistory 
+  PriceHistory,
+  Recipe,
+  RecipeIngredient 
 } from '../types';
-import { INITIAL_HOUSE_DATA } from '../data/initialData';
+import { INITIAL_HOUSE_DATA, DEMO_HOUSE_DATA, EMPTY_HOUSE_DATA } from '../data/initialData';
+import { roundPrecision, safeAdd, safeSub, safeMul, clampNonNegative } from '../utils/math';
+import { validateAtomicPreparation } from '../utils/recipeEngine';
 
 export interface FullHouseData {
   house: House;
@@ -21,6 +25,7 @@ export interface FullHouseData {
   purchases: Purchase[];
   purchaseItems: PurchaseItem[];
   priceHistory: PriceHistory[];
+  recipes: Recipe[];
 }
 
 const LOCAL_STORAGE_KEY = 'casacontrole_cached_data';
@@ -58,6 +63,9 @@ export function getCachedData(): FullHouseData {
     if (raw) {
       const parsed = JSON.parse(raw);
       if (parsed && parsed.house && Array.isArray(parsed.products)) {
+        if (!Array.isArray(parsed.recipes)) {
+          parsed.recipes = INITIAL_HOUSE_DATA.recipes || [];
+        }
         return parsed;
       }
     }
@@ -111,8 +119,9 @@ export async function apiRecordConsumption(
   const product = current.products.find(p => p.id === payload.productId);
   if (!product) throw new Error('Produto não encontrado');
 
-  const previousStock = product.current_stock;
-  const newStock = Math.max(0, previousStock - payload.quantity);
+  const previousStock = roundPrecision(product.current_stock || 0, 3);
+  const qty = roundPrecision(payload.quantity || 0, 3);
+  const newStock = clampNonNegative(safeSub(previousStock, qty));
   product.current_stock = newStock;
   product.updated_at = new Date().toISOString();
 
@@ -120,7 +129,7 @@ export async function apiRecordConsumption(
     id: generateId('c'),
     house_id: houseId,
     product_id: payload.productId,
-    quantity: payload.quantity,
+    quantity: qty,
     unit: product.unit,
     date: payload.date || new Date().toISOString().split('T')[0],
     member_id: payload.memberId,
@@ -133,10 +142,10 @@ export async function apiRecordConsumption(
     house_id: houseId,
     product_id: payload.productId,
     type: 'consumption',
-    quantity_delta: -payload.quantity,
+    quantity_delta: roundPrecision(-qty, 3),
     previous_stock: previousStock,
     new_stock: newStock,
-    reason: payload.notes || `Consumo de ${payload.quantity} ${product.unit}`,
+    reason: payload.notes || `Consumo de ${qty} ${product.unit}`,
     performed_by_member_id: payload.memberId,
     created_at: new Date().toISOString()
   };
@@ -167,9 +176,9 @@ export async function apiAdjustStock(
   const product = current.products.find(p => p.id === payload.productId);
   if (!product) throw new Error('Produto não encontrado');
 
-  const previousStock = product.current_stock;
-  const newStock = Math.max(0, payload.newStockValue);
-  const delta = newStock - previousStock;
+  const previousStock = roundPrecision(product.current_stock || 0, 3);
+  const newStock = clampNonNegative(payload.newStockValue || 0);
+  const delta = roundPrecision(safeSub(newStock, previousStock), 3);
   product.current_stock = newStock;
   product.updated_at = new Date().toISOString();
 
@@ -227,17 +236,19 @@ export async function apiRecordPurchase(
     const product = current.products.find(p => p.id === item.product_id);
     if (!product) continue;
 
-    const itemTotal = item.quantity * item.unit_price;
-    totalAmount += itemTotal;
+    const qty = roundPrecision(item.quantity || 0, 3);
+    const uPrice = roundPrecision(item.unit_price || 0, 2);
+    const itemTotal = safeMul(qty, uPrice, 2);
+    totalAmount = safeAdd(totalAmount, itemTotal, 2);
 
     const purchaseItem: PurchaseItem = {
       id: generateId('pi'),
       purchase_id: purchaseId,
       house_id: houseId,
       product_id: item.product_id,
-      quantity: item.quantity,
+      quantity: qty,
       unit: product.unit,
-      unit_price: item.unit_price,
+      unit_price: uPrice,
       total_price: itemTotal,
       notes: item.notes,
       created_at: new Date().toISOString()
@@ -245,9 +256,10 @@ export async function apiRecordPurchase(
     createdItems.push(purchaseItem);
 
     // Atualiza estoque e preço do produto
-    const prevStock = product.current_stock;
-    product.current_stock += item.quantity;
-    product.last_purchase_price = item.unit_price;
+    const prevStock = roundPrecision(product.current_stock || 0, 3);
+    const newStock = roundPrecision(safeAdd(prevStock, qty), 3);
+    product.current_stock = newStock;
+    product.last_purchase_price = uPrice;
     product.last_purchase_date = payload.date;
     product.updated_at = new Date().toISOString();
 
@@ -256,7 +268,7 @@ export async function apiRecordPurchase(
       id: generateId('ph'),
       house_id: houseId,
       product_id: item.product_id,
-      unit_price: item.unit_price,
+      unit_price: uPrice,
       store_name: payload.store_name,
       date: payload.date,
       purchase_id: purchaseId,
@@ -269,10 +281,10 @@ export async function apiRecordPurchase(
       id: generateId('mov'),
       house_id: houseId,
       product_id: item.product_id,
-      type: 'addition',
-      quantity_delta: item.quantity,
+      type: 'purchase',
+      quantity_delta: qty,
       previous_stock: prevStock,
-      new_stock: product.current_stock,
+      new_stock: newStock,
       reason: `Compra em ${payload.store_name || 'supermercado'}`,
       performed_by_member_id: payload.buyer_member_id,
       created_at: new Date().toISOString()
@@ -314,8 +326,12 @@ export async function apiAddProduct(
   }
 
   const current = getCachedData();
+  const sanitizedStock = clampNonNegative(payload.current_stock || 0);
+  const sanitizedMinAlert = payload.min_stock_alert !== undefined ? clampNonNegative(payload.min_stock_alert) : undefined;
   const newProduct: Product = {
     ...payload,
+    current_stock: sanitizedStock,
+    min_stock_alert: sanitizedMinAlert,
     id: generateId('prod'),
     house_id: houseId,
     created_at: new Date().toISOString(),
@@ -345,9 +361,16 @@ export async function apiUpdateProduct(
   const current = getCachedData();
   const index = current.products.findIndex(p => p.id === productId);
   if (index >= 0) {
+    const updatedPayload = { ...payload };
+    if (updatedPayload.current_stock !== undefined) {
+      updatedPayload.current_stock = clampNonNegative(updatedPayload.current_stock);
+    }
+    if (updatedPayload.min_stock_alert !== undefined) {
+      updatedPayload.min_stock_alert = clampNonNegative(updatedPayload.min_stock_alert);
+    }
     current.products[index] = {
       ...current.products[index],
-      ...payload,
+      ...updatedPayload,
       updated_at: new Date().toISOString()
     };
     setCachedData(current);
@@ -428,3 +451,200 @@ export async function apiAddMember(
   setCachedData(current);
   return newMember;
 }
+
+export async function apiResetToDemoData(): Promise<FullHouseData> {
+  setCachedData(DEMO_HOUSE_DATA);
+  return DEMO_HOUSE_DATA;
+}
+
+export async function apiResetToEmptyData(): Promise<FullHouseData> {
+  setCachedData(EMPTY_HOUSE_DATA);
+  return EMPTY_HOUSE_DATA;
+}
+
+// -------------------------------------------------------------
+// Operações do Módulo de Receitas
+// -------------------------------------------------------------
+
+export async function apiAddRecipe(
+  houseId: string,
+  payload: Omit<Recipe, 'id' | 'house_id' | 'created_at' | 'updated_at'>
+): Promise<Recipe> {
+  try {
+    const res = await fetch(`/api/houses/${houseId}/recipes`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback local
+  }
+
+  const current = getCachedData();
+  const newRecipe: Recipe = {
+    ...payload,
+    id: generateId('rec'),
+    house_id: houseId,
+    ingredients: (payload.ingredients || []).map(ing => ({
+      ...ing,
+      id: ing.id || generateId('ing')
+    })),
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  if (!current.recipes) current.recipes = [];
+  current.recipes.unshift(newRecipe);
+  setCachedData(current);
+  return newRecipe;
+}
+
+export async function apiUpdateRecipe(
+  houseId: string,
+  recipeId: string,
+  payload: Partial<Recipe>
+): Promise<Recipe> {
+  try {
+    const res = await fetch(`/api/houses/${houseId}/recipes/${recipeId}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback local
+  }
+
+  const current = getCachedData();
+  if (!current.recipes) current.recipes = [];
+  const idx = current.recipes.findIndex(r => r.id === recipeId);
+  if (idx === -1) throw new Error('Receita não encontrada');
+
+  const updated: Recipe = {
+    ...current.recipes[idx],
+    ...payload,
+    updated_at: new Date().toISOString()
+  };
+
+  current.recipes[idx] = updated;
+  setCachedData(current);
+  return updated;
+}
+
+export async function apiDeleteRecipe(houseId: string, recipeId: string): Promise<{ success: boolean }> {
+  try {
+    const res = await fetch(`/api/houses/${houseId}/recipes/${recipeId}`, {
+      method: 'DELETE',
+    });
+    if (res.ok) return await res.json();
+  } catch {
+    // Fallback local
+  }
+
+  const current = getCachedData();
+  if (current.recipes) {
+    current.recipes = current.recipes.filter(r => r.id !== recipeId);
+    setCachedData(current);
+  }
+  return { success: true };
+}
+
+export async function apiPrepareRecipe(
+  houseId: string,
+  recipeId: string,
+  servings: number,
+  memberId?: string
+): Promise<{ 
+  success: boolean; 
+  consumptions: Consumption[]; 
+  movements: StockMovement[]; 
+  message: string 
+}> {
+  try {
+    const res = await fetch(`/api/houses/${houseId}/recipes/${recipeId}/prepare`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ servings, memberId }),
+    });
+    if (res.ok) return await res.json();
+    if (res.status === 400) {
+      const err = await res.json();
+      throw new Error(err.error || 'Falha ao preparar receita');
+    }
+  } catch (err: any) {
+    if (err.message && !err.message.includes('fetch')) {
+      throw err;
+    }
+    // Fallback local caso endpoint não responda
+  }
+
+  const current = getCachedData();
+  const recipe = current.recipes?.find(r => r.id === recipeId);
+  if (!recipe) throw new Error('Receita não encontrada');
+
+  // Validação atômica matemática determinística
+  const validation = validateAtomicPreparation(recipe, current.products, servings);
+  if (!validation.canExecute) {
+    throw new Error(validation.error || 'Estoque insuficiente para preparar a receita.');
+  }
+
+  const now = new Date().toISOString();
+  const today = now.split('T')[0];
+  const createdConsumptions: Consumption[] = [];
+  const createdMovements: StockMovement[] = [];
+
+  // Execução atômica do plano de débito
+  for (const debit of validation.debits) {
+    const product = current.products.find(p => p.id === debit.productId);
+    if (!product) continue;
+
+    // Atualiza estoque
+    product.current_stock = debit.newStock;
+    product.updated_at = now;
+
+    // Cria registro de consumo com rastreabilidade
+    const consumption: Consumption = {
+      id: generateId('c'),
+      house_id: houseId,
+      product_id: product.id,
+      quantity: debit.quantityInProductUnit,
+      unit: debit.productUnit,
+      date: today,
+      member_id: memberId,
+      notes: `Consumo através da receita: ${recipe.name} (${servings} porções)`,
+      recipe_id: recipe.id,
+      recipe_name: recipe.name,
+      created_at: now
+    };
+    createdConsumptions.push(consumption);
+    current.consumptions.unshift(consumption);
+
+    // Cria movimentação de estoque com rastreabilidade
+    const movement: StockMovement = {
+      id: generateId('mov'),
+      house_id: houseId,
+      product_id: product.id,
+      type: 'consumption',
+      quantity_delta: roundPrecision(-debit.quantityInProductUnit, 3),
+      previous_stock: debit.previousStock,
+      new_stock: debit.newStock,
+      reason: `Consumo através da receita: ${recipe.name}`,
+      performed_by_member_id: memberId,
+      recipe_id: recipe.id,
+      created_at: now
+    };
+    createdMovements.push(movement);
+    current.stockMovements.unshift(movement);
+  }
+
+  setCachedData(current);
+
+  return {
+    success: true,
+    consumptions: createdConsumptions,
+    movements: createdMovements,
+    message: `Receita "${recipe.name}" preparada com sucesso! ${createdConsumptions.length} ingredientes consumidos no estoque.`
+  };
+}
+

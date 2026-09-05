@@ -14,11 +14,11 @@ export default defineConfig(() => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: 'CasaControle — Gestão Doméstica',
+          name: 'CasaControle - Gestão Doméstica',
           short_name: 'CasaControle',
           description: 'Controle inteligente de estoque, consumo e compras da família.',
-          theme_color: '#f43f5e',
-          background_color: '#f8fafc',
+          theme_color: '#111827',
+          background_color: '#0f172a',
           display: 'standalone',
           start_url: '/',
           scope: '/',
@@ -51,7 +51,7 @@ export default defineConfig(() => {
     ],
     resolve: {
       alias: {
-        '@': path.resolve(__dirname, '.'),
+        '@': path.resolve(process.cwd(), '.'),
       },
     },
     server: {

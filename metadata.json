@@ -1,6 +1,6 @@
 {
   "name": "CasaControle",
-  "description": "Sistema familiar de gestão de estoque, consumo doméstico e compras inteligentes com cálculos determinísticos.",
-  "requestFramePermissions": [],
+  "description": "Sistema familiar direto e leve de gestão de estoque, consumo doméstico, receitas e compras sem desperdício.",
+  "requestFramePermissions": ["camera", "microphone"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

@@ -9,8 +9,12 @@ import {
   Consumption, 
   Purchase, 
   PurchaseItem, 
-  PriceHistory 
+  PriceHistory,
+  Recipe,
+  RecipeIngredient 
 } from '../src/types';
+import { roundPrecision, safeAdd, safeSub, safeMul, clampNonNegative } from '../src/utils/math';
+import { validateAtomicPreparation } from '../src/utils/recipeEngine';
 
 export interface DatabaseData {
   houses: House[];
@@ -22,6 +26,7 @@ export interface DatabaseData {
   purchases: Purchase[];
   purchaseItems: PurchaseItem[];
   priceHistory: PriceHistory[];
+  recipes: Recipe[];
 }
 
 const DATA_DIR = path.join(process.cwd(), 'data');
@@ -425,6 +430,77 @@ function createInitialSeedData(): DatabaseData {
     },
   ];
 
+  const initialRecipes: Recipe[] = [
+    {
+      id: 'rec-1',
+      house_id: 'c0a80101-0000-4000-8000-000000000001',
+      name: 'Arroz com Ovos Caipira',
+      description: 'Prato rápido, nutritivo e econômico adorado pela família.',
+      prep_time_minutes: 15,
+      servings: 2,
+      instructions: [
+        'Refogue a cebola picada em um fio de azeite ou óleo até dourar levemente.',
+        'Adicione o arroz branco cozido ou cru e misture bem para aquecer e absorver o tempero.',
+        'Em uma frigideira à parte, mexa os ovos até ficarem no ponto desejado.',
+        'Junte os ovos ao arroz, acrescente o queijo por cima para derreter e sirva quentinho.'
+      ],
+      ingredients: [
+        { id: 'ing-1', recipe_id: 'rec-1', product_id: 'prod-arroz', product_name: 'Arroz Branco', quantity: 300, unit: 'g', is_optional: false, notes: 'ou 1 xícara de arroz' },
+        { id: 'ing-2', recipe_id: 'rec-1', product_id: 'prod-ovos', product_name: 'Ovos de Galinha', quantity: 3, unit: 'unidade', is_optional: false, notes: 'ovos frescos caipiras' },
+        { id: 'ing-3', recipe_id: 'rec-1', product_id: 'prod-cebola', product_name: 'Cebola Nacional', quantity: 50, unit: 'g', is_optional: false, notes: 'picadinha fininha' },
+        { id: 'ing-4', recipe_id: 'rec-1', product_id: 'prod-queijo', product_name: 'Queijo Mussarela', quantity: 50, unit: 'g', is_optional: true, notes: 'ralado ou em cubos (a gosto)' }
+      ],
+      created_by_member_id: 'c0a80101-0000-4000-8000-000000000002',
+      created_at: '2026-08-05T10:00:00Z',
+      updated_at: '2026-09-05T10:00:00Z'
+    },
+    {
+      id: 'rec-2',
+      house_id: 'c0a80101-0000-4000-8000-000000000001',
+      name: 'Feijão Caseiro da Mãe',
+      description: 'Receita tradicional de feijão carioca bem temperado e encorpado.',
+      prep_time_minutes: 45,
+      servings: 6,
+      instructions: [
+        'Deixe o feijão de molho por 30 minutos e escorra.',
+        'Cozinhe na panela de pressão com água e folhas de louro por 25 minutos após pegar pressão.',
+        'Em outra panela, doure a cebola e alho em um fio de azeite.',
+        'Adicione duas conchas do feijão cozido, amasse para engrossar o caldo e devolva tudo à panela principal.',
+        'Deixe ferver por mais 10 minutos para apurar o caldo e acerte o sal.'
+      ],
+      ingredients: [
+        { id: 'ing-5', recipe_id: 'rec-2', product_id: 'prod-feijao', product_name: 'Feijão Carioca', quantity: 500, unit: 'g', is_optional: false, notes: 'meio pacote de 1kg' },
+        { id: 'ing-6', recipe_id: 'rec-2', product_id: 'prod-cebola', product_name: 'Cebola Nacional', quantity: 100, unit: 'g', is_optional: false, notes: 'picada' }
+      ],
+      created_by_member_id: 'c0a80101-0000-4000-8000-000000000002',
+      created_at: '2026-08-10T11:00:00Z',
+      updated_at: '2026-09-05T10:00:00Z'
+    },
+    {
+      id: 'rec-3',
+      house_id: 'c0a80101-0000-4000-8000-000000000001',
+      name: 'Bolo Fofinho de Café da Tarde',
+      description: 'Bolo macio e douradinho para o café com a família.',
+      prep_time_minutes: 40,
+      servings: 8,
+      instructions: [
+        'Bata os ovos no liquidificador com o leite até espumar.',
+        'Acrescente a farinha de trigo aos poucos, misturando suavemente.',
+        'Adicione o fermento em pó por último, mexendo delicadamente com uma espátula.',
+        'Despeje em fôrma untada e leve ao forno pré-aquecido a 180°C por cerca de 35 a 40 minutos.'
+      ],
+      ingredients: [
+        { id: 'ing-7', recipe_id: 'rec-3', product_id: 'prod-farinha', product_name: 'Farinha de Trigo', quantity: 400, unit: 'g', is_optional: false, notes: 'peneirada' },
+        { id: 'ing-8', recipe_id: 'rec-3', product_id: 'prod-leite', product_name: 'Leite Integral', quantity: 250, unit: 'ml', is_optional: false, notes: 'em temperatura ambiente' },
+        { id: 'ing-9', recipe_id: 'rec-3', product_id: 'prod-ovos', product_name: 'Ovos de Galinha', quantity: 3, unit: 'unidade', is_optional: false, notes: 'claras e gemas' },
+        { id: 'ing-10', recipe_id: 'rec-3', product_id: 'prod-fermento', product_name: 'Fermento em Pó', quantity: 1, unit: 'unidade', is_optional: false, notes: 'pote de fermento químico' }
+      ],
+      created_by_member_id: 'c0a80101-0000-4000-8000-000000000003',
+      created_at: '2026-08-20T16:00:00Z',
+      updated_at: '2026-09-05T10:00:00Z'
+    }
+  ];
+
   return {
     houses: [defaultHouse],
     members: initialMembers,
@@ -435,6 +511,7 @@ function createInitialSeedData(): DatabaseData {
     purchases,
     purchaseItems,
     priceHistory,
+    recipes: initialRecipes,
   };
 }
 
@@ -449,7 +526,9 @@ export class JsonDatabase {
     try {
       if (fs.existsSync(DB_FILE)) {
         const raw = fs.readFileSync(DB_FILE, 'utf-8');
-        return JSON.parse(raw);
+        const parsed = JSON.parse(raw);
+        if (!parsed.recipes) parsed.recipes = [];
+        return parsed;
       }
     } catch (err) {
       console.error('Erro ao ler banco de dados local, recriando seed:', err);
@@ -486,6 +565,7 @@ export class JsonDatabase {
       purchases: this.data.purchases.filter(p => p.house_id === actualHouseId),
       purchaseItems: this.data.purchaseItems.filter(pi => pi.house_id === actualHouseId),
       priceHistory: this.data.priceHistory.filter(ph => ph.house_id === actualHouseId),
+      recipes: (this.data.recipes || []).filter(r => r.house_id === actualHouseId),
     };
   }
 
@@ -570,9 +650,9 @@ export class JsonDatabase {
     const product = this.data.products.find(p => p.id === productId && p.house_id === houseId);
     if (!product) throw new Error('Produto não encontrado');
 
-    const qty = Number(quantity);
-    const prevStock = Number(product.current_stock);
-    const newStock = Math.max(0, prevStock - qty);
+    const qty = roundPrecision(Number(quantity), 3);
+    const prevStock = roundPrecision(Number(product.current_stock || 0), 3);
+    const newStock = clampNonNegative(safeSub(prevStock, qty));
     const now = new Date().toISOString();
 
     // 1. Atualizar produto
@@ -599,7 +679,7 @@ export class JsonDatabase {
       house_id: houseId,
       product_id: productId,
       type: 'consumption',
-      quantity_delta: -qty,
+      quantity_delta: roundPrecision(-qty, 3),
       previous_stock: prevStock,
       new_stock: newStock,
       reason: notes || `Consumo de ${qty} ${product.unit}`,
@@ -624,9 +704,9 @@ export class JsonDatabase {
     const product = this.data.products.find(p => p.id === productId && p.house_id === houseId);
     if (!product) throw new Error('Produto não encontrado');
 
-    const prevStock = Number(product.current_stock);
-    const targetStock = Math.max(0, Number(newStockValue));
-    const delta = targetStock - prevStock;
+    const prevStock = roundPrecision(Number(product.current_stock || 0), 3);
+    const targetStock = clampNonNegative(Number(newStockValue));
+    const delta = roundPrecision(safeSub(targetStock, prevStock), 3);
     const now = new Date().toISOString();
 
     product.current_stock = targetStock;
@@ -675,13 +755,13 @@ export class JsonDatabase {
       const product = this.data.products.find(p => p.id === item.product_id && p.house_id === houseId);
       if (!product) continue;
 
-      const qty = Number(item.quantity);
-      const unitPrice = Number(item.unit_price);
-      const itemTotal = qty * unitPrice;
-      totalAmount += itemTotal;
+      const qty = roundPrecision(Number(item.quantity), 3);
+      const unitPrice = roundPrecision(Number(item.unit_price), 2);
+      const itemTotal = safeMul(qty, unitPrice, 2);
+      totalAmount = safeAdd(totalAmount, itemTotal, 2);
 
-      const prevStock = Number(product.current_stock);
-      const newStock = prevStock + qty;
+      const prevStock = roundPrecision(Number(product.current_stock || 0), 3);
+      const newStock = roundPrecision(safeAdd(prevStock, qty), 3);
 
       // Atualiza produto
       product.current_stock = newStock;
@@ -779,6 +859,147 @@ export class JsonDatabase {
     this.data.members.push(member);
     this.saveData(this.data);
     return member;
+  }
+
+  // Recipes
+  public getRecipes(houseId: string): Recipe[] {
+    return (this.data.recipes || []).filter(r => r.house_id === houseId);
+  }
+
+  public addRecipe(houseId: string, item: Omit<Recipe, 'id' | 'house_id' | 'created_at' | 'updated_at'>): Recipe {
+    const now = new Date().toISOString();
+    const recipeId = generateUUID();
+    const recipe: Recipe = {
+      ...item,
+      id: recipeId,
+      house_id: houseId,
+      ingredients: (item.ingredients || []).map((ing, idx) => ({
+        ...ing,
+        id: ing.id || `${recipeId}-ing-${idx + 1}`,
+        recipe_id: recipeId,
+      })),
+      created_at: now,
+      updated_at: now,
+    };
+    if (!this.data.recipes) this.data.recipes = [];
+    this.data.recipes.push(recipe);
+    this.saveData(this.data);
+    return recipe;
+  }
+
+  public updateRecipe(houseId: string, recipeId: string, item: Partial<Recipe>): Recipe | null {
+    if (!this.data.recipes) this.data.recipes = [];
+    const index = this.data.recipes.findIndex(r => r.id === recipeId && r.house_id === houseId);
+    if (index === -1) return null;
+
+    const existing = this.data.recipes[index];
+    const updated: Recipe = {
+      ...existing,
+      ...item,
+      id: existing.id,
+      house_id: existing.house_id,
+      ingredients: (item.ingredients !== undefined ? item.ingredients : existing.ingredients || []).map((ing, idx) => ({
+        ...ing,
+        id: ing.id || `${recipeId}-ing-${idx + 1}`,
+        recipe_id: recipeId,
+      })),
+      updated_at: new Date().toISOString(),
+    };
+
+    this.data.recipes[index] = updated;
+    this.saveData(this.data);
+    return updated;
+  }
+
+  public deleteRecipe(houseId: string, recipeId: string): boolean {
+    if (!this.data.recipes) return false;
+    const initialLen = this.data.recipes.length;
+    this.data.recipes = this.data.recipes.filter(r => !(r.id === recipeId && r.house_id === houseId));
+    const deleted = this.data.recipes.length < initialLen;
+    if (deleted) this.saveData(this.data);
+    return deleted;
+  }
+
+  public prepareRecipe(houseId: string, recipeId: string, servings: number, memberId?: string): {
+    success: boolean;
+    consumptions: Consumption[];
+    movements: StockMovement[];
+    message: string;
+  } {
+    const recipe = (this.data.recipes || []).find(r => r.id === recipeId && r.house_id === houseId);
+    if (!recipe) {
+      throw new Error(`Receita não encontrada (ID: ${recipeId}).`);
+    }
+
+    const houseProducts = this.data.products.filter(p => p.house_id === houseId);
+    const validation = validateAtomicPreparation(recipe, houseProducts, servings);
+
+    if (!validation.canExecute) {
+      throw new Error(validation.error || 'Não é possível preparar a receita devido a ingredientes insuficientes.');
+    }
+
+    const now = new Date().toISOString();
+    const today = now.slice(0, 10);
+    const consumptions: Consumption[] = [];
+    const movements: StockMovement[] = [];
+
+    // Execução atômica sequencial garantida
+    for (const debit of validation.debits) {
+      const prodIndex = this.data.products.findIndex(p => p.id === debit.productId && p.house_id === houseId);
+      if (prodIndex === -1) {
+        throw new Error(`Produto ${debit.productName} não localizado para débito.`);
+      }
+
+      const product = this.data.products[prodIndex];
+      const prevStock = roundPrecision(product.current_stock, 3);
+      const newStock = roundPrecision(debit.newStock, 3);
+
+      // Atualiza estoque do produto
+      product.current_stock = newStock;
+      product.updated_at = now;
+
+      // Cria registro de consumo com rastreabilidade da receita
+      const consumption: Consumption = {
+        id: generateUUID(),
+        house_id: houseId,
+        product_id: product.id,
+        quantity: debit.quantityInProductUnit,
+        unit: debit.productUnit,
+        date: today,
+        member_id: memberId,
+        notes: `Consumo através da receita: ${recipe.name} (${servings} ${servings === 1 ? 'porção' : 'porções'})`,
+        recipe_id: recipe.id,
+        recipe_name: recipe.name,
+        created_at: now,
+      };
+      this.data.consumptions.push(consumption);
+      consumptions.push(consumption);
+
+      // Cria movimento de estoque rastreável
+      const movement: StockMovement = {
+        id: generateUUID(),
+        house_id: houseId,
+        product_id: product.id,
+        type: 'consumption',
+        quantity_delta: -debit.quantityInProductUnit,
+        previous_stock: prevStock,
+        new_stock: newStock,
+        reason: `Consumo através da receita: ${recipe.name}`,
+        performed_by_member_id: memberId,
+        recipe_id: recipe.id,
+        created_at: now,
+      };
+      this.data.stockMovements.push(movement);
+      movements.push(movement);
+    }
+
+    this.saveData(this.data);
+    return {
+      success: true,
+      consumptions,
+      movements,
+      message: `Receita "${recipe.name}" preparada com sucesso! ${consumptions.length} ingrediente(s) debitado(s) do estoque.`,
+    };
   }
 
   // House Settings

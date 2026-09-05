@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, TrendingDown, ShoppingBag, SlidersHorizontal, Check, Calendar, Store } from 'lucide-react';
+import { X, TrendingDown, ShoppingBag, SlidersHorizontal, Check, Calendar, Store, AlertCircle } from 'lucide-react';
 import { Product, UserMember } from '../types';
+import { roundPrecision, safeAdd, safeSub, clampNonNegative } from '../utils/math';
 
 interface QuickActionModalProps {
   isOpen: boolean;
@@ -42,9 +43,11 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
   const [notes, setNotes] = useState<string>('');
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [feedbackSuccess, setFeedbackSuccess] = useState<string | null>(null);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     setActiveTab(initialType);
+    setErrorMessage(null);
   }, [initialType]);
 
   useEffect(() => {
@@ -61,7 +64,7 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
 
   const handleQuickAddQty = (delta: number) => {
     setQuantity(prev => {
-      const next = Math.max(0.1, Number((prev + delta).toFixed(2)));
+      const next = Math.max(0.1, roundPrecision(prev + delta, 2));
       return next;
     });
   };
@@ -71,12 +74,13 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
     if (!selectedProduct) return;
     setIsSubmitting(true);
     setFeedbackSuccess(null);
+    setErrorMessage(null);
 
     try {
       if (activeTab === 'consumption') {
         await onRecordConsumption({
           productId: selectedProduct.id,
-          quantity: Number(quantity),
+          quantity: roundPrecision(Number(quantity), 3),
           date,
           memberId: activeMemberId,
           notes: notes.trim() || undefined,
@@ -92,8 +96,8 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
           items: [
             {
               product_id: selectedProduct.id,
-              quantity: Number(quantity),
-              unit_price: unitPrice,
+              quantity: roundPrecision(Number(quantity), 3),
+              unit_price: roundPrecision(unitPrice, 2),
               notes: notes.trim() || undefined,
             },
           ],
@@ -103,7 +107,7 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
         // Ajuste manual de estoque
         await onAdjustStock({
           productId: selectedProduct.id,
-          newStockValue: Number(quantity),
+          newStockValue: roundPrecision(Number(quantity), 3),
           type: 'manual_adjustment',
           reason: notes.trim() || 'Correção de contagem física em casa',
           memberId: activeMemberId,
@@ -117,20 +121,20 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
         onClose();
       }, 900);
     } catch (err: any) {
-      alert(`Erro: ${err.message}`);
+      setErrorMessage(err.message || 'Ocorreu um erro ao salvar o registro.');
       setIsSubmitting(false);
     }
   };
 
   // Pré-visualização do impacto no estoque
-  const currentStock = selectedProduct ? Number(selectedProduct.current_stock || 0) : 0;
+  const currentStock = selectedProduct ? roundPrecision(Number(selectedProduct.current_stock || 0), 3) : 0;
   let simulatedNextStock = currentStock;
   if (activeTab === 'consumption') {
-    simulatedNextStock = Math.max(0, currentStock - quantity);
+    simulatedNextStock = clampNonNegative(safeSub(currentStock, quantity));
   } else if (activeTab === 'purchase') {
-    simulatedNextStock = currentStock + quantity;
+    simulatedNextStock = roundPrecision(safeAdd(currentStock, quantity), 3);
   } else {
-    simulatedNextStock = quantity;
+    simulatedNextStock = clampNonNegative(Number(quantity));
   }
 
   return (
@@ -199,6 +203,13 @@ export const QuickActionModal: React.FC<QuickActionModalProps> = ({
 
         {/* Formulário com controles grandes e claros */}
         <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto space-y-4 flex-1">
+          {errorMessage && (
+            <div className="p-3.5 bg-rose-50 border border-rose-200 rounded-2xl flex items-center gap-2.5 text-rose-800 text-xs font-semibold">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
+
           {feedbackSuccess ? (
             <div className="p-6 text-center space-y-3 bg-emerald-50/80 backdrop-blur-xs rounded-[2rem] border border-emerald-200">
               <div className="w-12 h-12 bg-emerald-600 text-white rounded-full flex items-center justify-center mx-auto shadow-md">

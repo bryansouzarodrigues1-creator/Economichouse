@@ -1,13 +1,31 @@
+// Prevent tsx from leaking an invalid string '.' as __dirname which breaks packages using createRequire(__dirname)
+if (typeof globalThis !== 'undefined' && (globalThis as any).__dirname === '.') {
+  delete (globalThis as any).__dirname;
+}
+if (typeof global !== 'undefined' && (global as any).__dirname === '.') {
+  delete (global as any).__dirname;
+}
+
 import express from 'express';
 import path from 'path';
 import { createServer as createViteServer } from 'vite';
 import { db } from './server/db.js';
+import { 
+  isGeminiConfigured,
+  parseReceiptWithGemini,
+  chatWithHouseAssistant,
+  suggestRecipesFromPantry,
+  generateConsumptionInsightsWithGemini,
+  getGeminiClient,
+  GEMINI_MODEL
+} from './server/gemini.js';
 
 async function startServer() {
   const app = express();
   const PORT = 3000;
 
-  app.use(express.json());
+  app.use(express.json({ limit: '25mb' }));
+  app.use(express.urlencoded({ extended: true, limit: '25mb' }));
 
   // ==========================================
   // API ROUTES (Mapeamento RESTful para Supabase)
@@ -131,6 +149,170 @@ async function startServer() {
       res.json(house);
     } catch (err: any) {
       res.status(400).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // MÓDULO DE RECEITAS FAMILIARES (DETERMINÍSTICO)
+  // ==========================================
+  
+  // Listar receitas da casa
+  app.get('/api/houses/:houseId/recipes', (req, res) => {
+    try {
+      const { houseId } = req.params;
+      const recipes = db.getRecipes(houseId);
+      res.json(recipes);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Criar nova receita
+  app.post('/api/houses/:houseId/recipes', (req, res) => {
+    try {
+      const { houseId } = req.params;
+      const recipe = db.addRecipe(houseId, req.body);
+      res.status(201).json(recipe);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // Atualizar receita existente
+  app.put('/api/houses/:houseId/recipes/:recipeId', (req, res) => {
+    try {
+      const { houseId, recipeId } = req.params;
+      const updated = db.updateRecipe(houseId, recipeId, req.body);
+      if (!updated) {
+        return res.status(404).json({ error: 'Receita não encontrada' });
+      }
+      res.json(updated);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // Excluir receita
+  app.delete('/api/houses/:houseId/recipes/:recipeId', (req, res) => {
+    try {
+      const { houseId, recipeId } = req.params;
+      const deleted = db.deleteRecipe(houseId, recipeId);
+      res.json({ success: deleted });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Preparar receita (consumo atômico de ingredientes)
+  app.post('/api/houses/:houseId/recipes/:recipeId/prepare', (req, res) => {
+    try {
+      const { houseId, recipeId } = req.params;
+      const { servings, memberId } = req.body;
+      const result = db.prepareRecipe(houseId, recipeId, Number(servings) || 1, memberId);
+      res.json(result);
+    } catch (err: any) {
+      res.status(400).json({ error: err.message });
+    }
+  });
+
+  // ==========================================
+  // GEMINI AI INTEGRATION (SERVER-SIDE)
+  // ==========================================
+
+  // Status da IA e verificação graciosa de chave
+  app.get('/api/ai/status', (req, res) => {
+    const clientKey = req.headers['x-gemini-api-key'] as string | undefined;
+    const isConfigured = isGeminiConfigured(clientKey);
+    res.json({
+      configured: isConfigured,
+      hasServerKey: isGeminiConfigured(),
+      hasClientKey: Boolean(clientKey && clientKey.trim().length > 0),
+      model: GEMINI_MODEL,
+    });
+  });
+
+  // Testar conexão com a API do Gemini
+  app.post('/api/ai/test-connection', async (req, res) => {
+    try {
+      const customKey = (req.headers['x-gemini-api-key'] as string) || req.body?.apiKey;
+      const client = getGeminiClient(customKey);
+      const test = await client.models.generateContent({
+        model: GEMINI_MODEL,
+        contents: 'Olá! Responda apenas com a palavra OK se a conexão estiver perfeita.',
+      });
+      res.json({ success: true, message: `Conexão com Google Gemini (${GEMINI_MODEL}) ativa e verificada!`, response: test.text });
+    } catch (err: any) {
+      res.status(400).json({ success: false, error: err.message || 'Falha ao conectar com o Gemini.' });
+    }
+  });
+
+  // Chat com o Assistente Familiar
+  app.post('/api/ai/chat', async (req, res) => {
+    try {
+      const customKey = (req.headers['x-gemini-api-key'] as string) || req.body?.apiKey;
+      const { messages, context } = req.body;
+      if (!messages || !Array.isArray(messages)) {
+        return res.status(400).json({ error: 'Array de mensagens é obrigatório' });
+      }
+      const reply = await chatWithHouseAssistant(messages, context || { houseName: 'Minha Casa', productsInStock: [], lowStockProducts: [] }, customKey);
+      res.json({ reply });
+    } catch (err: any) {
+      const isKeyError = err.message?.includes('MISSING_API_KEY') || err.message?.includes('API_KEY_INVALID');
+      res.status(isKeyError ? 401 : 500).json({ 
+        error: err.message || 'Erro ao conversar com o Assistente Gemini.',
+        isKeyError
+      });
+    }
+  });
+
+  // Leitura de Cupom Fiscal / Nota Fiscal (OCR multimodal com saída estruturada)
+  app.post('/api/ai/parse-receipt', async (req, res) => {
+    try {
+      const customKey = (req.headers['x-gemini-api-key'] as string) || req.body?.apiKey;
+      const { imageBase64, mimeType } = req.body;
+      if (!imageBase64) {
+        return res.status(400).json({ error: 'Imagem em base64 é obrigatória' });
+      }
+      const parsed = await parseReceiptWithGemini(imageBase64, mimeType || 'image/jpeg', customKey);
+      res.json(parsed);
+    } catch (err: any) {
+      const isKeyError = err.message?.includes('MISSING_API_KEY') || err.message?.includes('API_KEY_INVALID');
+      res.status(isKeyError ? 401 : 500).json({ 
+        error: err.message || 'Erro ao processar imagem de cupom com Gemini.',
+        isKeyError
+      });
+    }
+  });
+
+  // Sugestão de Receitas Inteligentes a partir do Estoque
+  app.post('/api/ai/suggest-recipes', async (req, res) => {
+    try {
+      const customKey = (req.headers['x-gemini-api-key'] as string) || req.body?.apiKey;
+      const { currentStock, existingRecipes } = req.body;
+      const suggestions = await suggestRecipesFromPantry(currentStock || [], existingRecipes || [], customKey);
+      res.json({ suggestions });
+    } catch (err: any) {
+      const isKeyError = err.message?.includes('MISSING_API_KEY') || err.message?.includes('API_KEY_INVALID');
+      res.status(isKeyError ? 401 : 500).json({ 
+        error: err.message || 'Erro ao sugerir receitas com Gemini.',
+        isKeyError
+      });
+    }
+  });
+
+  // Insights Qualitativos de Consumo e Prevenção de Desperdício
+  app.post('/api/ai/consumption-insights', async (req, res) => {
+    try {
+      const customKey = (req.headers['x-gemini-api-key'] as string) || req.body?.apiKey;
+      const { stockData, consumptionHistory, houseName } = req.body;
+      const insights = await generateConsumptionInsightsWithGemini(stockData || [], consumptionHistory || [], houseName, customKey);
+      res.json(insights);
+    } catch (err: any) {
+      const isKeyError = err.message?.includes('MISSING_API_KEY') || err.message?.includes('API_KEY_INVALID');
+      res.status(isKeyError ? 401 : 500).json({ 
+        error: err.message || 'Erro ao gerar insights com Gemini.',
+        isKeyError
+      });
     }
   });
 

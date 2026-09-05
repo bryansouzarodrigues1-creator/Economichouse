@@ -4,15 +4,21 @@ import {
   Users, 
   Layers, 
   Database, 
-  Sparkles, 
   Check, 
   Copy, 
-  ExternalLink,
   Shield,
   Smartphone,
-  Info
+  Info,
+  RotateCcw,
+  Trash2,
+  CheckCircle2,
+  Download,
+  Share2,
+  Wifi
 } from 'lucide-react';
 import { House, UserMember, Category } from '../types';
+import { usePWAInstall } from '../hooks/usePWAInstall';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 interface SettingsViewProps {
   house: House;
@@ -20,6 +26,8 @@ interface SettingsViewProps {
   categories: Category[];
   onOpenAddMember: () => void;
   onOpenCategoryManager: () => void;
+  onResetToDemo?: () => void;
+  onResetToEmpty?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -28,112 +36,174 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   categories,
   onOpenAddMember,
   onOpenCategoryManager,
+  onResetToDemo,
+  onResetToEmpty,
 }) => {
   const [copiedSql, setCopiedSql] = useState(false);
+  const [confirmReset, setConfirmReset] = useState<'demo' | 'empty' | null>(null);
+  const { isInstallable, isInstalled, isIOS, install } = usePWAInstall();
+  const isOnline = useOnlineStatus();
+  const [installFeedback, setInstallFeedback] = useState<string | null>(null);
+
+  const handleInstallClick = async () => {
+    const success = await install();
+    if (success) {
+      setInstallFeedback('Aplicativo instalado com sucesso na sua tela inicial!');
+    } else if (isIOS) {
+      setInstallFeedback('No iPhone/iPad: Toque no botão de Compartilhar do Safari e selecione "Adicionar à Tela de Início".');
+    }
+  };
 
   const copySqlToClipboard = () => {
     const sqlText = `-- Esquema Oficial CasaControle PostgreSQL / Supabase
 -- Pronto para colar no SQL Editor do Supabase ou Lovable
 
-CREATE TABLE houses (
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+
+CREATE TABLE IF NOT EXISTS public.houses (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(255) NOT NULL,
-    description TEXT,
-    currency VARCHAR(10) DEFAULT 'BRL',
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    admin_id UUID,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE house_members (
+CREATE TABLE IF NOT EXISTS public.house_members (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    house_id UUID NOT NULL REFERENCES houses(id) ON DELETE CASCADE,
+    house_id UUID NOT NULL REFERENCES public.houses(id) ON DELETE CASCADE,
     name VARCHAR(255) NOT NULL,
     email VARCHAR(255),
-    role VARCHAR(50) DEFAULT 'member',
+    role VARCHAR(50) NOT NULL DEFAULT 'member' CHECK (role IN ('admin', 'member')),
     avatar_color VARCHAR(50) DEFAULT '#166534',
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE categories (
+CREATE TABLE IF NOT EXISTS public.house_settings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    house_id UUID NOT NULL REFERENCES houses(id) ON DELETE CASCADE,
-    name VARCHAR(255) NOT NULL,
+    house_id UUID NOT NULL UNIQUE REFERENCES public.houses(id) ON DELETE CASCADE,
+    currency VARCHAR(10) NOT NULL DEFAULT 'BRL',
+    planning_days INT NOT NULL DEFAULT 30 CHECK (planning_days > 0),
+    low_stock_days_threshold INT NOT NULL DEFAULT 7 CHECK (low_stock_days_threshold >= 0),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.categories (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    house_id UUID NOT NULL REFERENCES public.houses(id) ON DELETE CASCADE,
+    name VARCHAR(150) NOT NULL,
     icon VARCHAR(100) DEFAULT 'Layers',
     color VARCHAR(50) DEFAULT '#059669',
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    is_default BOOLEAN NOT NULL DEFAULT FALSE,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE products (
+CREATE TABLE IF NOT EXISTS public.products (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    house_id UUID NOT NULL REFERENCES houses(id) ON DELETE CASCADE,
-    category_id UUID NOT NULL REFERENCES categories(id),
+    house_id UUID NOT NULL REFERENCES public.houses(id) ON DELETE CASCADE,
+    category_id UUID NOT NULL REFERENCES public.categories(id) ON DELETE RESTRICT,
     name VARCHAR(255) NOT NULL,
     unit VARCHAR(50) NOT NULL,
-    current_stock NUMERIC(10, 2) NOT NULL DEFAULT 0,
-    min_stock_alert NUMERIC(10, 2) DEFAULT 0,
-    last_purchase_price NUMERIC(10, 2),
+    current_stock NUMERIC(12, 3) NOT NULL DEFAULT 0 CHECK (current_stock >= 0),
+    min_stock_alert NUMERIC(12, 3) DEFAULT 0 CHECK (min_stock_alert >= 0),
+    notes TEXT,
+    last_purchase_price NUMERIC(12, 2) CHECK (last_purchase_price >= 0),
     last_purchase_date DATE,
-    notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW(),
-    updated_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE stock_movements (
+CREATE TABLE IF NOT EXISTS public.stock_movements (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    house_id UUID NOT NULL REFERENCES houses(id) ON DELETE CASCADE,
-    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-    type VARCHAR(50) NOT NULL,
-    quantity_changed NUMERIC(10, 2) NOT NULL,
-    stock_before NUMERIC(10, 2) NOT NULL,
-    stock_after NUMERIC(10, 2) NOT NULL,
-    date DATE NOT NULL,
-    member_id UUID REFERENCES house_members(id),
+    house_id UUID NOT NULL REFERENCES public.houses(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    type VARCHAR(50) NOT NULL CHECK (type IN ('purchase', 'consumption', 'addition', 'removal', 'manual_adjustment')),
+    quantity_delta NUMERIC(12, 3) NOT NULL,
+    previous_stock NUMERIC(12, 3) NOT NULL CHECK (previous_stock >= 0),
+    new_stock NUMERIC(12, 3) NOT NULL CHECK (new_stock >= 0),
     reason TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    performed_by_member_id UUID REFERENCES public.house_members(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE consumptions (
+CREATE TABLE IF NOT EXISTS public.consumptions (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    house_id UUID NOT NULL REFERENCES houses(id) ON DELETE CASCADE,
-    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-    quantity NUMERIC(10, 2) NOT NULL,
+    house_id UUID NOT NULL REFERENCES public.houses(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    quantity NUMERIC(12, 3) NOT NULL CHECK (quantity > 0),
     unit VARCHAR(50) NOT NULL,
-    date DATE NOT NULL,
-    member_id UUID REFERENCES house_members(id),
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    member_id UUID REFERENCES public.house_members(id) ON DELETE SET NULL,
     notes TEXT,
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE purchases (
+CREATE TABLE IF NOT EXISTS public.purchases (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    house_id UUID NOT NULL REFERENCES houses(id) ON DELETE CASCADE,
-    date DATE NOT NULL,
-    total_amount NUMERIC(10, 2) NOT NULL DEFAULT 0,
+    house_id UUID NOT NULL REFERENCES public.houses(id) ON DELETE CASCADE,
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
     store_name VARCHAR(255),
+    total_amount NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (total_amount >= 0),
+    buyer_member_id UUID REFERENCES public.house_members(id) ON DELETE SET NULL,
     notes TEXT,
-    buyer_member_id UUID REFERENCES house_members(id),
-    created_at TIMESTAMPTZ DEFAULT NOW()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE purchase_items (
+CREATE TABLE IF NOT EXISTS public.purchase_items (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    purchase_id UUID NOT NULL REFERENCES purchases(id) ON DELETE CASCADE,
-    product_id UUID NOT NULL REFERENCES products(id) ON DELETE RESTRICT,
-    quantity NUMERIC(10, 2) NOT NULL,
-    unit_price NUMERIC(10, 2) NOT NULL,
-    total_price NUMERIC(10, 2) NOT NULL,
-    notes TEXT
+    purchase_id UUID NOT NULL REFERENCES public.purchases(id) ON DELETE CASCADE,
+    house_id UUID NOT NULL REFERENCES public.houses(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    quantity NUMERIC(12, 3) NOT NULL CHECK (quantity > 0),
+    unit VARCHAR(50) NOT NULL,
+    unit_price NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (unit_price >= 0),
+    total_price NUMERIC(12, 2) NOT NULL DEFAULT 0 CHECK (total_price >= 0),
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE TABLE price_history (
+CREATE TABLE IF NOT EXISTS public.price_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    house_id UUID NOT NULL REFERENCES houses(id) ON DELETE CASCADE,
-    product_id UUID NOT NULL REFERENCES products(id) ON DELETE CASCADE,
-    unit_price NUMERIC(10, 2) NOT NULL,
+    house_id UUID NOT NULL REFERENCES public.houses(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE CASCADE,
+    unit_price NUMERIC(12, 2) NOT NULL CHECK (unit_price >= 0),
     store_name VARCHAR(255),
-    date DATE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
-);`;
+    date DATE NOT NULL DEFAULT CURRENT_DATE,
+    purchase_id UUID REFERENCES public.purchases(id) ON DELETE SET NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Tabelas Preparadas para Receitas
+CREATE TABLE IF NOT EXISTS public.recipes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    house_id UUID NOT NULL REFERENCES public.houses(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    prep_time_minutes INT CHECK (prep_time_minutes >= 0),
+    servings INT CHECK (servings > 0),
+    instructions JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS public.recipe_ingredients (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    recipe_id UUID NOT NULL REFERENCES public.recipes(id) ON DELETE CASCADE,
+    product_id UUID NOT NULL REFERENCES public.products(id) ON DELETE RESTRICT,
+    quantity NUMERIC(12, 3) NOT NULL CHECK (quantity > 0),
+    unit VARCHAR(50) NOT NULL,
+    is_optional BOOLEAN NOT NULL DEFAULT FALSE,
+    notes TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- RLS
+ALTER TABLE public.houses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.stock_movements ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.consumptions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.purchases ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.recipes ENABLE ROW LEVEL SECURITY;`;
 
     navigator.clipboard.writeText(sqlText);
     setCopiedSql(true);
@@ -179,7 +249,92 @@ CREATE TABLE price_history (
         </div>
       </div>
 
-      {/* 2. Gerenciamento de Membros e Categorias */}
+      {/* 2. Instalação PWA & Uso Offline */}
+      <div className="bg-white/70 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/40 shadow-sm space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3.5">
+            <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-slate-900 to-slate-800 text-white flex items-center justify-center shadow-lg shadow-slate-900/10 shrink-0">
+              <Smartphone className="w-6 h-6 text-rose-400" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-lg font-bold text-slate-800">
+                  Instalar Aplicativo no Celular (PWA)
+                </h2>
+                <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  isInstalled
+                    ? 'bg-emerald-100 text-emerald-800'
+                    : 'bg-rose-100 text-rose-800'
+                }`}>
+                  {isInstalled ? '✓ Já Instalado' : 'Pronto para Instalar'}
+                </span>
+              </div>
+              <p className="text-xs text-slate-500">
+                Funciona em tela cheia como um aplicativo nativo e continua funcionando mesmo sem internet no supermercado.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            {!isInstalled && (
+              <button
+                type="button"
+                onClick={handleInstallClick}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-slate-900 hover:bg-black text-white font-bold text-xs sm:text-sm shadow-md shadow-slate-900/20 active:scale-95 transition"
+              >
+                <Download className="w-4 h-4 text-rose-400" />
+                <span>📱 Instalar App no Celular</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {installFeedback && (
+          <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-emerald-900 text-xs font-semibold flex items-center gap-2">
+            <CheckCircle2 className="w-4 h-4 text-emerald-600 shrink-0" />
+            <span>{installFeedback}</span>
+          </div>
+        )}
+
+        {/* Guias passo a passo por sistema */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-2">
+          {/* Android / Chrome */}
+          <div className="p-4 rounded-2xl bg-white/60 border border-white/80 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+              <span className="w-2 h-2 rounded-full bg-emerald-500" />
+              <span>No celular Android (Google Chrome)</span>
+            </div>
+            <ol className="list-decimal list-inside space-y-1 text-xs text-slate-600">
+              <li>Clique no botão <strong>"📱 Instalar App no Celular"</strong> acima;</li>
+              <li>Ou toque nos <strong>3 pontinhos (⋮)</strong> no topo do navegador;</li>
+              <li>Toque em <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar à tela inicial"</strong>.</li>
+            </ol>
+          </div>
+
+          {/* iPhone / Safari */}
+          <div className="p-4 rounded-2xl bg-white/60 border border-white/80 space-y-2">
+            <div className="flex items-center gap-2 text-xs font-bold text-slate-800">
+              <span className="w-2 h-2 rounded-full bg-rose-500" />
+              <span>No iPhone ou iPad (Safari)</span>
+            </div>
+            <ol className="list-decimal list-inside space-y-1 text-xs text-slate-600">
+              <li>Toque no botão de <strong>Compartilhar</strong> (ícone com quadrado e seta para cima);</li>
+              <li>Role para baixo e toque em <strong>"Adicionar à Tela de Início"</strong>;</li>
+              <li>Confirme tocando em <strong>"Adicionar"</strong> no canto superior direito.</li>
+            </ol>
+          </div>
+        </div>
+
+        {/* Garantia de isolamento e offline */}
+        <div className="pt-2 border-t border-slate-100 flex items-start gap-2.5 text-xs text-slate-500">
+          <Shield className="w-4 h-4 text-rose-500 shrink-0 mt-0.5" />
+          <p>
+            <strong>Isolamento seguro e sem internet:</strong> O aplicativo salva todos os dados no armazenamento interno do seu aparelho (IndexedDB/LocalStorage). Quando a conexão cai, você pode continuar registrando sem perder nada.
+          </p>
+        </div>
+      </div>
+
+      {/* 3. Gerenciamento de Membros e Categorias */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Membros */}
         <div className="bg-white/70 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/40 shadow-sm flex flex-col justify-between space-y-4">
@@ -296,21 +451,94 @@ CREATE TABLE stock_movements (id UUID, product_id UUID, quantity_changed NUMERIC
 CREATE TABLE consumptions (id UUID, product_id UUID, quantity NUMERIC, date DATE, member_id UUID);
 CREATE TABLE purchases (id UUID, total_amount NUMERIC, store_name VARCHAR(255), date DATE);
 CREATE TABLE purchase_items (id UUID, purchase_id UUID, product_id UUID, quantity NUMERIC, unit_price NUMERIC);
-CREATE TABLE price_history (id UUID, product_id UUID, unit_price NUMERIC, store_name VARCHAR(255), date DATE);`}</pre>
+CREATE TABLE price_history (id UUID, product_id UUID, unit_price NUMERIC, store_name VARCHAR(255), date DATE);
+CREATE TABLE recipes (id UUID PRIMARY KEY, house_id UUID, name VARCHAR(255), prep_time_minutes INT, servings INT);
+CREATE TABLE recipe_ingredients (id UUID PRIMARY KEY, recipe_id UUID, product_id UUID, quantity NUMERIC, unit VARCHAR(50));`}</pre>
         </div>
       </div>
 
-      {/* 4. Camada de IA (Princípio Fundamental) */}
+      {/* 4. Motor Matemático Doméstico */}
       <div className="bg-white/70 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/40 shadow-sm space-y-3">
         <div className="flex items-center gap-2.5">
-          <Sparkles className="w-5 h-5 text-amber-500" />
+          <Shield className="w-5 h-5 text-emerald-600" />
           <h3 className="text-base font-bold text-slate-800">
-            Princípio Fundamental: Motor Matemático vs Inteligência Artificial
+            Motor Matemático Determinístico & Privacidade Familiar
           </h3>
         </div>
         <p className="text-xs text-slate-600 leading-relaxed">
-          Seguindo à risca a especificação: a IA <strong>não realiza cálculos básicos</strong>. O motor determinístico (`mathEngine.ts`) calcula consumos médios, dias de estoque e sugestão de compras. A camada de IA (`src/services/ai/aiService.ts`) está isolada através de interface limpa (`IAiService`), pronta para quando ativarmos o Gemini na Etapa 2 (leitura de cupom fiscal, comandos de voz e insights comportamentais) sem alterar uma única linha da lógica essencial.
+          O CasaControle calcula consumos médios, previsão de estoque e reposição através de fórmulas exatas no próprio aparelho, garantindo privacidade completa e funcionamento contínuo mesmo sem conexão com a internet.
         </p>
+      </div>
+
+      {/* 5. Separação de Dados Demo vs Dados Reais da Família */}
+      <div className="bg-white/70 backdrop-blur-md rounded-[2.5rem] p-6 border border-white/40 shadow-sm space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-2xl bg-amber-50 border border-amber-100 text-amber-600 flex items-center justify-center shrink-0">
+            <RotateCcw className="w-5 h-5" />
+          </div>
+          <div>
+            <h3 className="text-base font-bold text-slate-800 tracking-tight">
+              Dados do Sistema: Demonstração vs Família Real
+            </h3>
+            <p className="text-xs text-slate-500">
+              Alterne entre os dados de demonstração (arroz, feijão, histórico) e uma casa limpa para uso real.
+            </p>
+          </div>
+        </div>
+
+        {confirmReset && (
+          <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-3 animate-in fade-in duration-200">
+            <p className="text-xs font-bold text-amber-900">
+              {confirmReset === 'demo' 
+                ? 'Tem certeza que deseja restaurar os dados de demonstração? Seus produtos atuais serão substituídos pelo exemplo.'
+                : 'Tem certeza que deseja limpar os dados para iniciar o uso real da família? O estoque e histórico serão zerados.'}
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={() => {
+                  if (confirmReset === 'demo' && onResetToDemo) onResetToDemo();
+                  if (confirmReset === 'empty' && onResetToEmpty) onResetToEmpty();
+                  setConfirmReset(null);
+                }}
+                className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white rounded-full text-xs font-bold shadow-xs active:scale-95 transition"
+              >
+                Sim, confirmar
+              </button>
+              <button
+                onClick={() => setConfirmReset(null)}
+                className="px-4 py-2 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-full text-xs font-bold transition"
+              >
+                Cancelar
+              </button>
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
+          <button
+            type="button"
+            onClick={() => setConfirmReset('demo')}
+            className="p-3.5 bg-white/60 hover:bg-white/85 border border-white/50 rounded-2xl text-left flex items-start gap-3 transition"
+          >
+            <RotateCcw className="w-4 h-4 text-rose-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="text-xs font-bold text-slate-800 block">Restaurar Dados Demonstração</span>
+              <span className="text-[11px] text-slate-500">Recarregar itens e histórico de exemplo pré-calculados.</span>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setConfirmReset('empty')}
+            className="p-3.5 bg-white/60 hover:bg-white/85 border border-white/50 rounded-2xl text-left flex items-start gap-3 transition"
+          >
+            <Trash2 className="w-4 h-4 text-slate-600 shrink-0 mt-0.5" />
+            <div>
+              <span className="text-xs font-bold text-slate-800 block">Iniciar Casa Limpa (Dados Reais)</span>
+              <span className="text-[11px] text-slate-500">Zerar itens e manter categorias para cadastrar seus mantimentos.</span>
+            </div>
+          </button>
+        </div>
       </div>
     </div>
   );

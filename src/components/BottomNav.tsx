@@ -2,13 +2,15 @@ import React from 'react';
 import { 
   LayoutDashboard, 
   Package, 
+  ChefHat,
+  Sparkles,
   ShoppingCart, 
   TrendingDown, 
   ReceiptText, 
   Settings 
 } from 'lucide-react';
 
-export type NavTab = 'dashboard' | 'stock' | 'shopping_list' | 'consumption' | 'purchases' | 'settings';
+export type NavTab = 'dashboard' | 'stock' | 'recipes' | 'assistant' | 'shopping_list' | 'consumption' | 'purchases' | 'settings';
 
 interface BottomNavProps {
   currentTab: NavTab;
@@ -24,6 +26,7 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   const tabs = [
     { id: 'dashboard' as NavTab, label: 'Início', icon: LayoutDashboard },
     { id: 'stock' as NavTab, label: 'Estoque', icon: Package },
+    { id: 'recipes' as NavTab, label: 'Receitas', icon: ChefHat },
     { 
       id: 'shopping_list' as NavTab, 
       label: 'Comprar', 
@@ -36,8 +39,8 @@ export const BottomNav: React.FC<BottomNavProps> = ({
   ];
 
   return (
-    <nav className="fixed bottom-3 sm:bottom-4 left-0 right-0 z-40 px-3 sm:px-4 pointer-events-none pb-safe">
-      <div className="max-w-md mx-auto pointer-events-auto bg-slate-900/90 backdrop-blur-xl border border-white/15 px-3 sm:px-4 py-2 rounded-full flex items-center justify-around shadow-2xl">
+    <nav className="fixed bottom-3 sm:bottom-4 left-0 right-0 z-40 px-2 sm:px-4 pointer-events-none pb-safe">
+      <div className="max-w-lg mx-auto pointer-events-auto bg-slate-900/90 backdrop-blur-xl border border-white/15 px-2 sm:px-4 py-2 rounded-full flex items-center justify-around shadow-2xl">
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = currentTab === tab.id;

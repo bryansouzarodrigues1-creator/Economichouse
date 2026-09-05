@@ -10,7 +10,9 @@ import {
   ChevronDown, 
   ChevronUp, 
   Layers,
-  ArrowUpDown
+  ArrowUpDown,
+  Camera,
+  Sparkles
 } from 'lucide-react';
 import { Purchase, Product, Category, UserMember, PriceHistory } from '../types';
 import { formatCurrency } from '../utils/mathEngine';
@@ -62,13 +64,15 @@ export const PurchasesView: React.FC<PurchasesViewProps> = ({
           </p>
         </div>
 
-        <button
-          onClick={() => onOpenQuickAction('purchase')}
-          className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white rounded-full text-xs sm:text-sm font-bold shadow-md shadow-rose-100 active:scale-95 transition"
-        >
-          <Plus className="w-4 h-4 stroke-[3]" />
-          <span>Registrar Compra</span>
-        </button>
+        <div className="flex flex-wrap items-center gap-2">
+          <button
+            onClick={() => onOpenQuickAction('purchase')}
+            className="flex items-center justify-center gap-2 px-5 py-2.5 bg-gradient-to-r from-rose-500 to-pink-600 hover:from-rose-600 hover:to-pink-700 text-white rounded-full text-xs sm:text-sm font-bold shadow-md shadow-rose-200/60 active:scale-95 transition"
+          >
+            <Plus className="w-4 h-4 stroke-[3]" />
+            <span>+ Registrar Compra</span>
+          </button>
+        </div>
       </div>
 
       {/* Cartão de Resumo Financeiro */}

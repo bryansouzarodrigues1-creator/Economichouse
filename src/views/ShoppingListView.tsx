@@ -180,6 +180,16 @@ export const ShoppingListView: React.FC<ShoppingListViewProps> = ({
                       }`} />
                       {rec.statusLabel}
                     </span>
+
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[9px] font-semibold border ${
+                      metrics.reliability === 'reliable_estimate'
+                        ? 'bg-teal-50 border-teal-200 text-teal-800'
+                        : metrics.reliability === 'forming_history'
+                        ? 'bg-sky-50 border-sky-200 text-sky-800'
+                        : 'bg-slate-100 border-slate-200 text-slate-600'
+                    }`}>
+                      {metrics.reliabilityLabel}
+                    </span>
                   </div>
 
                   <h3 className={`text-base font-bold text-slate-800 tracking-tight ${isChecked ? 'line-through text-slate-400' : ''}`}>

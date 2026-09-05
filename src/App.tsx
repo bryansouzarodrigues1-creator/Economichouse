@@ -14,9 +14,15 @@ import {
   apiAddProduct, 
   apiUpdateProduct, 
   apiAddCategory, 
-  apiAddMember 
+  apiAddMember,
+  apiResetToDemoData,
+  apiResetToEmptyData,
+  apiAddRecipe,
+  apiUpdateRecipe,
+  apiDeleteRecipe,
+  apiPrepareRecipe
 } from './services/api';
-import { Product, UserMember } from './types';
+import { Product, UserMember, Recipe } from './types';
 import { calculateProductMetrics } from './utils/mathEngine';
 import { Navbar } from './components/Navbar';
 import { BottomNav, NavTab } from './components/BottomNav';
@@ -25,9 +31,12 @@ import { QuickActionModal } from './components/QuickActionModal';
 import { ProductFormModal } from './components/ProductFormModal';
 import { CategoryManagerModal } from './components/CategoryManagerModal';
 import { MemberManagerModal } from './components/MemberManagerModal';
+import { RecipeModal } from './components/RecipeModal';
+import { RecipeDetailModal } from './components/RecipeDetailModal';
 
 import { DashboardView } from './views/DashboardView';
 import { StockView } from './views/StockView';
+import { RecipesView } from './views/RecipesView';
 import { ShoppingListView } from './views/ShoppingListView';
 import { ConsumptionView } from './views/ConsumptionView';
 import { PurchasesView } from './views/PurchasesView';
@@ -60,6 +69,16 @@ export default function App() {
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
   const [isMemberModalOpen, setIsMemberModalOpen] = useState(false);
+
+  // Recipe Modals state
+  const [recipeModal, setRecipeModal] = useState<{
+    isOpen: boolean;
+    recipeToEdit?: Recipe | null;
+  }>({
+    isOpen: false,
+    recipeToEdit: null,
+  });
+  const [selectedRecipeDetail, setSelectedRecipeDetail] = useState<Recipe | null>(null);
 
   const activeHouseId = getStoredActiveHouseId();
 
@@ -147,6 +166,44 @@ export default function App() {
     await loadData();
   };
 
+  const handleResetToDemo = async () => {
+    const updated = await apiResetToDemoData();
+    setData(updated);
+    if (updated.members.length > 0) setActiveMemberId(updated.members[0].id);
+  };
+
+  const handleResetToEmpty = async () => {
+    const updated = await apiResetToEmptyData();
+    setData(updated);
+    if (updated.members.length > 0) setActiveMemberId(updated.members[0].id);
+  };
+
+  // Recipe Handlers
+  const handleSaveRecipe = async (recipeData: any) => {
+    await apiAddRecipe(activeHouseId, recipeData);
+    await loadData();
+  };
+
+  const handleUpdateRecipe = async (recipeData: any) => {
+    if (!recipeModal.recipeToEdit) return;
+    await apiUpdateRecipe(activeHouseId, recipeModal.recipeToEdit.id, recipeData);
+    await loadData();
+  };
+
+  const handleDeleteRecipe = async (recipeId: string) => {
+    await apiDeleteRecipe(activeHouseId, recipeId);
+    await loadData();
+  };
+
+  const handlePrepareRecipe = async (recipeId: string, servings: number, memberId?: string) => {
+    await apiPrepareRecipe(activeHouseId, recipeId, servings, memberId);
+    await loadData();
+  };
+
+  const handleAddToShoppingList = (productName: string, neededQuantity: number, unit: string, productId?: string) => {
+    handleOpenQuickAction('purchase', productId);
+  };
+
   return (
     <div className="min-h-screen text-slate-800 flex flex-col font-sans selection:bg-rose-200 selection:text-rose-950 relative">
       {/* Ambient glowing spots for luminous frosted glass refraction with rose tones */}
@@ -177,6 +234,7 @@ export default function App() {
               purchases={data.purchases}
               categories={data.categories}
               members={data.members}
+              recipes={data.recipes || []}
               activeMember={activeMember}
               onNavigateTab={setActiveTab}
               onOpenQuickAction={handleOpenQuickAction}
@@ -192,6 +250,25 @@ export default function App() {
             onOpenNewProduct={() => setProductFormModal({ isOpen: true, productToEdit: null })}
             onEditProduct={(product) => setProductFormModal({ isOpen: true, productToEdit: product })}
             onOpenQuickAction={handleOpenQuickAction}
+          />
+        )}
+
+        {activeTab === 'recipes' && (
+          <RecipesView
+            recipes={data.recipes || []}
+            products={data.products}
+            members={data.members}
+            activeMemberId={activeMemberId}
+            onSaveRecipe={async (recipeData, recipeId) => {
+              if (recipeId) {
+                await handleUpdateRecipe(recipeData);
+              } else {
+                await handleSaveRecipe(recipeData);
+              }
+            }}
+            onDeleteRecipe={handleDeleteRecipe}
+            onPrepareRecipe={handlePrepareRecipe}
+            onAddToShoppingList={handleAddToShoppingList}
           />
         )}
 
@@ -232,6 +309,8 @@ export default function App() {
             categories={data.categories}
             onOpenAddMember={() => setIsMemberModalOpen(true)}
             onOpenCategoryManager={() => setIsCategoryModalOpen(true)}
+            onResetToDemo={handleResetToDemo}
+            onResetToEmpty={handleResetToEmpty}
           />
         )}
       </main>
@@ -282,6 +361,33 @@ export default function App() {
         onClose={() => setIsMemberModalOpen(false)}
         members={data.members}
         onAddMember={handleAddMember}
+      />
+
+      {/* Recipe Modals */}
+      <RecipeModal
+        isOpen={recipeModal.isOpen}
+        recipe={recipeModal.recipeToEdit}
+        products={data.products}
+        members={data.members}
+        activeMemberId={activeMemberId}
+        onClose={() => setRecipeModal({ isOpen: false, recipeToEdit: null })}
+        onSave={recipeModal.recipeToEdit ? handleUpdateRecipe : handleSaveRecipe}
+      />
+
+      <RecipeDetailModal
+        isOpen={!!selectedRecipeDetail}
+        recipe={selectedRecipeDetail}
+        products={data.products}
+        members={data.members}
+        activeMemberId={activeMemberId}
+        onClose={() => setSelectedRecipeDetail(null)}
+        onEdit={(recipe) => {
+          setSelectedRecipeDetail(null);
+          setRecipeModal({ isOpen: true, recipeToEdit: recipe });
+        }}
+        onDelete={handleDeleteRecipe}
+        onPrepare={handlePrepareRecipe}
+        onAddToShoppingList={handleAddToShoppingList}
       />
       </div>
     </div>

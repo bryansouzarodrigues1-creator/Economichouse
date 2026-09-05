@@ -3,6 +3,7 @@ import { Home, Plus } from 'lucide-react';
 import { House, UserMember, Purchase } from '../types';
 import { PWAInstallButton } from './PWAInstallButton';
 import { formatCurrency } from '../utils/mathEngine';
+import { useOnlineStatus } from '../hooks/useOnlineStatus';
 
 interface NavbarProps {
   house: House;
@@ -21,6 +22,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onSelectMember,
   onOpenQuickAction,
 }) => {
+  const isOnline = useOnlineStatus();
   const activeMember = members.find(m => m.id === activeMemberId) || members[0];
 
   // Cálculo do gasto do mês corrente para a pílula de destaque
@@ -42,6 +44,14 @@ export const Navbar: React.FC<NavbarProps> = ({
               <h1 className="text-xl sm:text-2xl font-bold text-slate-800 leading-tight">CasaControle</h1>
               <span className="hidden sm:inline-flex px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-rose-100/90 text-rose-700 border border-rose-200/60 uppercase tracking-wider">
                 Familiar
+              </span>
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-bold border transition ${
+                isOnline 
+                  ? 'bg-emerald-50/90 text-emerald-800 border-emerald-200' 
+                  : 'bg-amber-100 text-amber-900 border-amber-300 shadow-xs'
+              }`} title={isOnline ? 'Conectado à internet e sincronizado' : 'Modo offline: gravando com segurança no aparelho'}>
+                <span className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-amber-600'}`} />
+                <span>{isOnline ? 'Online' : 'Modo Offline (Salvando no Aparelho)'}</span>
               </span>
             </div>
             <p className="text-slate-500 text-xs sm:text-sm truncate max-w-[150px] sm:max-w-xs">

@@ -84,6 +84,7 @@ export interface StockMovement {
   new_stock: number;
   reason?: string;
   performed_by_member_id?: string;
+  recipe_id?: string;
   created_at: string;
 }
 
@@ -96,6 +97,8 @@ export interface Consumption {
   date: string; // YYYY-MM-DD
   member_id?: string;
   notes?: string;
+  recipe_id?: string;
+  recipe_name?: string;
   created_at: string;
 }
 
@@ -141,6 +144,11 @@ export interface PriceHistory {
 
 export type PurchaseRecommendationStatus = 'buy_now' | 'buy_soon' | 'dont_buy';
 
+export type ConsumptionDataReliability = 
+  | 'insufficient_data' // "Sem dados suficientes" (< 2 registros ou < 3 dias)
+  | 'forming_history'   // "Histórico em formação" (2 a 4 registros ou < 14 dias)
+  | 'reliable_estimate'; // "Estimativa confiável" (>= 5 registros E >= 14 dias)
+
 export interface ProductCalculations {
   productId: string;
   totalConsumed: number;
@@ -149,11 +157,14 @@ export interface ProductCalculations {
   lastRecordDate?: string;
   daysOfHistory: number;
   hasSufficientHistory: boolean;
+  reliability: ConsumptionDataReliability;
+  reliabilityLabel: string; // 'Sem dados suficientes' | 'Histórico em formação' | 'Estimativa confiável'
   historyStatusMessage: string;
   avgDailyConsumption: number;
   avgWeeklyConsumption: number;
   avgMonthlyConsumption: number;
   daysOfStockEstimated: number | null; // null se consumo = 0 ou histórico insuficiente
+  estimatedDepletionDate?: string | null; // Data estimada para o fim do estoque
   consumptionTrend: 'increasing' | 'stable' | 'decreasing' | 'unknown';
   recommendation: {
     status: PurchaseRecommendationStatus;
@@ -162,6 +173,35 @@ export interface ProductCalculations {
     suggestedQuantity: number;
     explanation: string;
   };
+}
+
+// -------------------------------------------------------------
+// Estrutura Futura: Receitas Familiares (Preparação de Arquitetura)
+// -------------------------------------------------------------
+
+export interface Recipe {
+  id: string;
+  house_id: string;
+  name: string;
+  description?: string;
+  prep_time_minutes?: number;
+  servings?: number;
+  instructions?: string[];
+  ingredients?: RecipeIngredient[];
+  created_by_member_id?: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RecipeIngredient {
+  id: string;
+  recipe_id: string;
+  product_id: string;
+  product_name?: string;
+  quantity: number;
+  unit: ProductUnit;
+  is_optional?: boolean;
+  notes?: string;
 }
 
 export interface DashboardMetrics {

@@ -1,6 +1,6 @@
 import { FullHouseData } from '../services/api';
 
-export const INITIAL_HOUSE_DATA: FullHouseData = {
+export const DEMO_HOUSE_DATA: FullHouseData = {
   house: {
     id: "c0a80101-0000-4000-8000-000000000001",
     name: "Casa da Família",
@@ -228,6 +228,62 @@ export const INITIAL_HOUSE_DATA: FullHouseData = {
       last_purchase_date: "2026-08-10",
       created_at: "2026-08-01T10:00:00Z",
       updated_at: "2026-09-05T10:00:00Z"
+    },
+    {
+      id: "prod-ovos",
+      house_id: "c0a80101-0000-4000-8000-000000000001",
+      category_id: "cat-1",
+      name: "Ovos de Galinha",
+      unit: "unidade",
+      current_stock: 6,
+      min_stock_alert: 4,
+      notes: "Cartela com ovos frescos.",
+      last_purchase_price: 12.0,
+      last_purchase_date: "2026-09-02",
+      created_at: "2026-08-01T10:00:00Z",
+      updated_at: "2026-09-05T10:00:00Z"
+    },
+    {
+      id: "prod-cebola",
+      house_id: "c0a80101-0000-4000-8000-000000000001",
+      category_id: "cat-1",
+      name: "Cebola Nacional",
+      unit: "kg",
+      current_stock: 1.0,
+      min_stock_alert: 0.5,
+      notes: "Cebola para tempero.",
+      last_purchase_price: 5.5,
+      last_purchase_date: "2026-09-01",
+      created_at: "2026-08-01T10:00:00Z",
+      updated_at: "2026-09-05T10:00:00Z"
+    },
+    {
+      id: "prod-farinha",
+      house_id: "c0a80101-0000-4000-8000-000000000001",
+      category_id: "cat-1",
+      name: "Farinha de Trigo",
+      unit: "kg",
+      current_stock: 1.5,
+      min_stock_alert: 1,
+      notes: "Farinha tradicional tipo 1.",
+      last_purchase_price: 4.8,
+      last_purchase_date: "2026-08-25",
+      created_at: "2026-08-01T10:00:00Z",
+      updated_at: "2026-09-05T10:00:00Z"
+    },
+    {
+      id: "prod-queijo",
+      house_id: "c0a80101-0000-4000-8000-000000000001",
+      category_id: "cat-1",
+      name: "Queijo Mussarela",
+      unit: "kg",
+      current_stock: 0.4,
+      min_stock_alert: 0.2,
+      notes: "Pedaço na geladeira.",
+      last_purchase_price: 18.0,
+      last_purchase_date: "2026-09-03",
+      created_at: "2026-08-01T10:00:00Z",
+      updated_at: "2026-09-05T10:00:00Z"
     }
   ],
   stockMovements: [
@@ -415,5 +471,201 @@ export const INITIAL_HOUSE_DATA: FullHouseData = {
       purchase_id: "pur-2",
       created_at: "2026-09-01T17:30:00Z"
     }
+  ],
+  recipes: [
+    {
+      id: "rec-1",
+      house_id: "c0a80101-0000-4000-8000-000000000001",
+      name: "Arroz com Ovos Caipira",
+      description: "Prato rápido, reconfortante e nutritivo para o almoço ou jantar da família.",
+      prep_time_minutes: 15,
+      servings: 2,
+      created_by_member_id: "c0a80101-0000-4000-8000-000000000002",
+      instructions: [
+        "Pique a cebola em cubinhos pequenos.",
+        "Refogue a cebola e prepare o arroz branco soltinho.",
+        "Em uma frigideira à parte, prepare os ovos no ponto desejado.",
+        "Monte o prato com o arroz quente, os ovos e finalize com queijo mussarela se desejar."
+      ],
+      ingredients: [
+        {
+          id: "ing-1-1",
+          recipe_id: "rec-1",
+          product_id: "prod-arroz",
+          product_name: "Arroz Branco",
+          quantity: 300,
+          unit: "g",
+          is_optional: false,
+          notes: "Tipo 1 bem soltinho"
+        },
+        {
+          id: "ing-1-2",
+          recipe_id: "rec-1",
+          product_id: "prod-ovos",
+          product_name: "Ovos de Galinha",
+          quantity: 3,
+          unit: "unidade",
+          is_optional: false,
+          notes: "Ovos frescos"
+        },
+        {
+          id: "ing-1-3",
+          recipe_id: "rec-1",
+          product_id: "prod-cebola",
+          product_name: "Cebola Nacional",
+          quantity: 50,
+          unit: "g",
+          is_optional: false,
+          notes: "Picadinha para refogar"
+        },
+        {
+          id: "ing-1-4",
+          recipe_id: "rec-1",
+          product_id: "prod-queijo",
+          product_name: "Queijo Mussarela",
+          quantity: 50,
+          unit: "g",
+          is_optional: true,
+          notes: "Opcional ralado por cima"
+        }
+      ],
+      created_at: "2026-08-10T10:00:00Z",
+      updated_at: "2026-09-05T10:00:00Z"
+    },
+    {
+      id: "rec-2",
+      house_id: "c0a80101-0000-4000-8000-000000000001",
+      name: "Feijão Caseiro da Mãe",
+      description: "Feijão carioca cremoso e temperado com cebola, perfeito para a semana toda.",
+      prep_time_minutes: 40,
+      servings: 6,
+      created_by_member_id: "c0a80101-0000-4000-8000-000000000002",
+      instructions: [
+        "Lave bem o feijão e deixe de molho por pelo menos 30 minutos.",
+        "Cozinhe na panela de pressão com água por aproximadamente 25 minutos.",
+        "Em outra panela, doure a cebola picadinha e despeje uma concha de feijão para amassar e engrossar.",
+        "Junte o restante do feijão cozido, acerte o sal e deixe ferver até apurar."
+      ],
+      ingredients: [
+        {
+          id: "ing-2-1",
+          recipe_id: "rec-2",
+          product_id: "prod-feijao",
+          product_name: "Feijão Carioca",
+          quantity: 500,
+          unit: "g",
+          is_optional: false,
+          notes: "Meio pacote de 1kg"
+        },
+        {
+          id: "ing-2-2",
+          recipe_id: "rec-2",
+          product_id: "prod-cebola",
+          product_name: "Cebola Nacional",
+          quantity: 100,
+          unit: "g",
+          is_optional: false,
+          notes: "Para refogar bem douradinha"
+        }
+      ],
+      created_at: "2026-08-12T11:00:00Z",
+      updated_at: "2026-09-05T10:00:00Z"
+    },
+    {
+      id: "rec-3",
+      house_id: "c0a80101-0000-4000-8000-000000000001",
+      name: "Bolo Fofinho de Café da Tarde",
+      description: "Bolo caseiro macio para acompanhar o café com leite da família.",
+      prep_time_minutes: 45,
+      servings: 8,
+      created_by_member_id: "c0a80101-0000-4000-8000-000000000003",
+      instructions: [
+        "Bata os ovos até ficarem fofos.",
+        "Adicione o leite e a farinha peneirada aos poucos, misturando bem.",
+        "Acrescente o fermento por último com movimentos suaves.",
+        "Despeje em fôrma untada e leve ao forno a 180°C por cerca de 35 minutos."
+      ],
+      ingredients: [
+        {
+          id: "ing-3-1",
+          recipe_id: "rec-3",
+          product_id: "prod-farinha",
+          product_name: "Farinha de Trigo",
+          quantity: 400,
+          unit: "g",
+          is_optional: false,
+          notes: "Farinha peneirada"
+        },
+        {
+          id: "ing-3-2",
+          recipe_id: "rec-3",
+          product_id: "prod-leite",
+          product_name: "Leite Integral",
+          quantity: 250,
+          unit: "ml",
+          is_optional: false,
+          notes: "1 copo americano"
+        },
+        {
+          id: "ing-3-3",
+          recipe_id: "rec-3",
+          product_id: "prod-ovos",
+          product_name: "Ovos de Galinha",
+          quantity: 3,
+          unit: "unidade",
+          is_optional: false,
+          notes: "Ovos inteiros"
+        },
+        {
+          id: "ing-3-4",
+          recipe_id: "rec-3",
+          product_id: "prod-fermento-ausente",
+          product_name: "Fermento Químico em Pó",
+          quantity: 1,
+          unit: "unidade",
+          is_optional: false,
+          notes: "Potinho 100g (falta no estoque para demonstrar a lista de compras)"
+        }
+      ],
+      created_at: "2026-08-15T14:00:00Z",
+      updated_at: "2026-09-05T10:00:00Z"
+    }
   ]
 };
+
+export const EMPTY_HOUSE_DATA: FullHouseData = {
+  house: {
+    id: "c0a80101-0000-4000-8000-000000000001",
+    name: "Minha Casa",
+    admin_id: "c0a80101-0000-4000-8000-000000000002",
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+    settings: {
+      currency: "BRL",
+      low_stock_days_threshold: 7,
+      planning_days: 30
+    }
+  },
+  members: [
+    {
+      id: "c0a80101-0000-4000-8000-000000000002",
+      house_id: "c0a80101-0000-4000-8000-000000000001",
+      name: "Eu (Administrador)",
+      email: "eu@casacontrole.local",
+      role: "admin",
+      avatar_color: "#e11d48",
+      created_at: new Date().toISOString()
+    }
+  ],
+  categories: DEMO_HOUSE_DATA.categories,
+  products: [],
+  stockMovements: [],
+  consumptions: [],
+  purchases: [],
+  purchaseItems: [],
+  priceHistory: [],
+  recipes: []
+};
+
+export const INITIAL_HOUSE_DATA = DEMO_HOUSE_DATA;
+
